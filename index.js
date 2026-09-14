@@ -8,7 +8,7 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://alhudatechglobal_db_us
 const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://ahtg-bd-bot.onrender.com';
 
 // আপনার টেলিগ্রাম আইডি এখানে অ্যাডমিন হিসেবে সেট করুন (আপনার আইডি বসিয়ে দেবেন)
-const ADMIN_TELEGRAM_ID = 123456789; // <-- আপনার টেলিগ্রাম ইউজার আইডি এখানে দিন
+const ADMIN_TELEGRAM_ID = 7689311203; // <-- আপনার টেলিগ্রাম ইউজার আইডি এখানে দিন
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
