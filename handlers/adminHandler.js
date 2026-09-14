@@ -3,12 +3,13 @@ const TaskSubmission = require('../models/TaskSubmission');
 const InstagramStock = require('../models/InstagramStock');
 const GiftCard = require('../models/GiftCard');
 
+const ADMIN_TELEGRAM_ID = 7689311203;
+
 // অ্যাডমিন প্যানেল ভিউ
 async function handleAdminPanel(ctx) {
     const userId = ctx.from.id;
-    const ADMIN_ID = process.env.ADMIN_ID;
 
-    if (userId.toString() !== ADMIN_ID.toString()) {
+    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) {
         return ctx.reply('⚠️ এই কমান্ডটি কেবল মাত্র অ্যাডমিনের জন্য সংরক্ষিত!');
     }
 
@@ -20,25 +21,24 @@ async function handleAdminPanel(ctx) {
         const adminMessage = 
             `⚙️ **অ্যাডমিন কন্ট্রোল প্যানেল**\n\n` +
             `👥 মোট ইউজার: **${totalUsers}**\n` +
-            `⏳ পেন্ডিং সাবমিশন: **${pendingSubmissions}**\n` +
+            `⏳ পেন্ডিং প্রুফ: **${pendingSubmissions}**\n` +
             `📸 খালি ইন্সটাগ্রাম স্টক: **${availableInstaStock}**\n\n` +
-            `📌 **কমান্ডস:**\n` +
-            `/addstock - স্টক আপলোড ফরম্যাট দেখতে\n` +
-            `/creategift <কোড> <পরিমাণ> - গিফট কার্ড তৈরি করতে`;
+            `📌 **কমান্ডসমূহ:**\n` +
+            `/creategift <কোড> <পরিমাণ> - নতুন গিফট কার্ড তৈরি করতে\n\n` +
+            `💡 _খুব শীঘ্রই বাল্ক অ্যাকাউন্ট আপলোড ইন্টারফেস যুক্ত করা হচ্ছে।_`;
 
-        ctx.reply(adminMessage, { parse_mode: 'Markdown' });
+        return ctx.reply(adminMessage, { parse_mode: 'Markdown' });
     } catch (error) {
         console.error('Admin Panel Error:', error);
-        ctx.reply('❌ অ্যাডমিন প্যানেল লোড করতে সমস্যা হয়েছে।');
+        return ctx.reply('❌ অ্যাডমিন প্যানেল লোড করতে সমস্যা হয়েছে।');
     }
 }
 
 // গিফট কার্ড তৈরি করার কমান্ড
 async function handleCreateGiftCard(ctx) {
     const userId = ctx.from.id;
-    const ADMIN_ID = process.env.ADMIN_ID;
 
-    if (userId.toString() !== ADMIN_ID.toString()) return;
+    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
 
     const args = ctx.message.text.split(' ');
     if (args.length < 3) {
@@ -49,10 +49,14 @@ async function handleCreateGiftCard(ctx) {
     const amount = parseFloat(args[2]);
 
     try {
-        await GiftCard.create({ code, amount });
-        ctx.reply(`✅ সফলভাবে **৳${amount}** টাকার গিফট কার্ড তৈরি হয়েছে!\n🎟️ কোড: \`${code}\``, { parse_mode: 'Markdown' });
+        await GiftCard.create({
+            code,
+            amount,
+            createdBy: userId
+        });
+        return ctx.reply(`✅ সফলভাবে **৳${amount}** টাকার গিফট কার্ড তৈরি হয়েছে!\n🎟️ কোড: \`${code}\``, { parse_mode: 'Markdown' });
     } catch (error) {
-        ctx.reply('❌ গিফট কার্ড তৈরি করা যায়নি। কোডটি হয়তো ইতিমধ্যে বিদ্যমান।');
+        return ctx.reply('❌ গিফট কার্ড তৈরি করা যায়নি। কোডটি হয়তো ইতিমধ্যে বিদ্যমান।');
     }
 }
 
