@@ -1,14 +1,22 @@
 const { Telegraf } = require('telegraf');
 const express = require('express');
-const connectDB = require('./config/db');
+const mongoose = require('mongoose');
 
-// Config Constants
+// ==========================================
+// CONFIGURATIONS (Testing Mode)
+// ==========================================
 const BOT_TOKEN = process.env.BOT_TOKEN || '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
 const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://ahtg-bd-bot.onrender.com';
 const ADMIN_TELEGRAM_ID = 7689311203;
+const PORT = process.env.PORT || 10000;
+
+// Direct MongoDB Connection
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('MongoDB Database Connected Successfully!'))
+    .catch((err) => console.error('MongoDB Connection Error:', err));
 
 // Handlers Import
-const { handleStart } = require('./handlers/startHandler');
+const { handleStart, handleVerifyCallback } = require('./handlers/startHandler');
 const { handleProfile } = require('./handlers/profileHandler');
 const { handleInstaTask } = require('./handlers/instaHandler');
 const { handleRedeemGiftCard } = require('./handlers/walletHandler');
@@ -21,10 +29,6 @@ const {
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
-const PORT = process.env.PORT || 10000;
-
-// Connect MongoDB Atlas
-connectDB();
 
 app.use(express.json());
 app.use(bot.webhookCallback(`/webhook/${BOT_TOKEN}`));
@@ -46,6 +50,9 @@ app.get('/', (req, res) => {
 
 // 🤖 Telegram Bot Routing
 bot.start(handleStart);
+
+// 🔍 Inline Button Action for Membership Verification
+bot.action('verify_membership', handleVerifyCallback);
 
 // Main Reply Keyboard Listeners
 bot.hears(['👤 প্রোফাইল', '👤 Profile'], handleProfile);
