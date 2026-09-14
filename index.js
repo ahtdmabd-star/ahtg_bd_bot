@@ -2,19 +2,18 @@ const { Telegraf } = require('telegraf');
 const mongoose = require('mongoose');
 const http = require('http');
 
-// টোকেন ও ডাটাবেজ কানেকশন
 const BOT_TOKEN = '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
-const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
+const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0:';
 const PORT = process.env.PORT || 3000;
 
 const bot = new Telegraf(BOT_TOKEN);
 
-// ১. MongoDB ডাটাবেজ কানেকশন
+// MongoDB কানেকশন
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected Successfully!'))
   .catch((err) => console.error('❌ Database Connection Error:', err));
 
-// ২. ইউজারের জন্য ডাটাবেজ স্কিমা ও মডেল তৈরি
+// ইউজার স্কিমা
 const userSchema = new mongoose.Schema({
   telegramId: { type: Number, unique: true },
   username: String,
@@ -24,7 +23,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// ৩. /start কমান্ড হ্যান্ডলার
+// /start কমান্ড
 bot.start(async (ctx) => {
   const userId = ctx.from.id;
   const username = ctx.from.username || 'No Username';
@@ -35,29 +34,28 @@ bot.start(async (ctx) => {
     if (!user) {
       user = new User({ telegramId: userId, username, firstName });
       await user.save();
-      console.log(`New user saved: ${firstName}`);
+      console.log(`New user saved: ${firstName} (${userId})`);
     }
 
-    ctx.reply(`স্বাগতম ${firstName}! আল-হুদা টেক গ্লোবাল ও টাস্ক প্ল্যাটফর্মে আপনাকে স্বাগতম। আপনার ডাটা সফলভাবে রেজিস্টার করা হয়েছে।`);
+    await ctx.reply(`স্বাগতম ${firstName}! আল-হুদা টেক গ্লোবাল ও টাস্ক প্ল্যাটফর্মে আপনাকে স্বাগতম। আপনার ডাটা সফলভাবে রেজিস্টার করা হয়েছে।`);
   } catch (error) {
-    console.error('Error saving user:', error);
-    ctx.reply('দুঃখিত, কোনো একটি সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।');
+    console.error('Error saving user to DB:', error);
+    await ctx.reply('দুঃখিত, সার্ভারে ডেটা সেভ করার সময় একটি সমস্যা হয়েছে। দয়া করে একটু পরে আবার চেষ্টা করুন।');
   }
 });
 
-// ৪. টেলিগ্রাম বট স্টার্ট করা
+// বট লঞ্চ করা
 bot.launch()
-  .then(() => console.log('🤖 Telegram Bot is running...'))
+  .then(() => console.log('🤖 Telegram Bot is running successfully!'))
   .catch((err) => console.error('Bot launch error:', err));
 
-// ৫. Render-এর জন্য HTTP সার্ভার চালু রাখা (যাতে Application exited early না দেখায়)
+// Render সার্ভার চালু রাখা
 http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Al-Huda Bot is running smoothly!\n');
+  res.end('Al-Huda Task Bot Server is Live!\n');
 }).listen(PORT, () => {
   console.log(`🌐 HTTP Server is listening on port ${PORT}`);
 });
 
-// গ্রেসফুল শাটডাউন
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
