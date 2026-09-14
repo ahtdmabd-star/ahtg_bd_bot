@@ -1,9 +1,11 @@
 const { Telegraf } = require('telegraf');
 const mongoose = require('mongoose');
+const http = require('http');
 
-// টোকেন ও ডাটাবেজ কানেকশন সরাসরি সেট করা
+// টোকেন ও ডাটাবেজ কানেকশন
 const BOT_TOKEN = '8651381547:AAF5jgoHUV18vlTFee47unNL_9w06YkgxdY';
 const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
+const PORT = process.env.PORT || 3000;
 
 const bot = new Telegraf(BOT_TOKEN);
 
@@ -43,10 +45,18 @@ bot.start(async (ctx) => {
   }
 });
 
-// ৪. বট স্টার্ট করা
+// ৪. টেলিগ্রাম বট স্টার্ট করা
 bot.launch()
   .then(() => console.log('🤖 Telegram Bot is running...'))
   .catch((err) => console.error('Bot launch error:', err));
+
+// ৫. Render-এর জন্য HTTP সার্ভার চালু রাখা (যাতে Application exited early না দেখায়)
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Al-Huda Bot is running smoothly!\n');
+}).listen(PORT, () => {
+  console.log(`🌐 HTTP Server is listening on port ${PORT}`);
+});
 
 // গ্রেসফুল শাটডাউন
 process.once('SIGINT', () => bot.stop('SIGINT'));
