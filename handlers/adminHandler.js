@@ -1,109 +1,172 @@
 const User = require('../models/User');
-const https = require('https');
+const Account = require('../models/Account');
+const { getAdminMenu } = require('../keyboards/adminMenu');
+const { getMainMenu } = require('../keyboards/mainMenu');
 
 const ADMIN_TELEGRAM_ID = 7689311203;
 
-// অ্যাডমিন প্যানেল ভিউ
-async function handleAdminPanel(ctx) {
-    const userId = ctx.from.id;
-
-    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) {
-        return ctx.reply('⚠️ এই কমান্ডটি কেবল মাত্র অ্যাডমিনের জন্য সংরক্ষিত!');
-    }
-
-    try {
-        let totalUsers = 0;
-        try {
-            totalUsers = await User.countDocuments();
-        } catch (e) {
-            console.error('User count error:', e);
-        }
-
-        const adminMessage = 
-            `⚙️ **অ্যাডমিন কন্ট্রোল প্যানেল**\n\n` +
-            `👥 মোট ইউজার: **${totalUsers}**\n\n` +
-            `📌 **বাল্ক ইন্সটাগ্রাম আপলোড কমান্ডসমূহ:**\n` +
-            `1️⃣ **টেক্সট দিয়ে যোগ করতে:**\n` +
-            `\`/addinsta user1:pass1, user2:pass2\`\n\n` +
-            `2️⃣ **TXT ফাইল দিয়ে আপলোড করতে:**\n` +
-            `একটি \`.txt\` ফাইলে প্রতিটি লাইনে \`username:password\` লিখে এখানে ফাইল হিসেবে আপলোড করুন।\n\n` +
-            `🎟️ **গিফট কার্ড তৈরি করতে:**\n` +
-            `\`/creategift <কোড> <পরিমাণ>\``;
-
-        return ctx.reply(adminMessage, { parse_mode: 'Markdown' });
-    } catch (error) {
-        console.error('Admin Panel Error:', error);
-        return ctx.reply('❌ অ্যাডমিন প্যানেল লোড করতে সমস্যা হয়েছে।');
-    }
+// ১. অ্যাডমিন মেনু ও ইউজার মেনু সুইচার
+async function showAdminPanel(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    return ctx.reply('👑 **অ্যাডমিন কন্ট্রোল প্যানেলে আপনাকে স্বাগতম!**\n\nনিচের বাটনগুলো দিয়ে বটের সার্বিক কার্যকলাপ পরিচালনা করুন:', {
+        parse_mode: 'Markdown',
+        ...getAdminMenu()
+    });
 }
 
-// টেক্সট দিয়ে ইন্সটাগ্রাম স্টক গ্রহণ
-async function handleAddInstaStock(ctx) {
-    const userId = ctx.from.id;
-    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
-
-    const fullText = ctx.message.text.replace('/addinsta', '').trim();
-    if (!fullText) {
-        return ctx.reply('⚠️ সঠিক ফরম্যাট: `/addinsta user1:pass1, user2:pass2`', { parse_mode: 'Markdown' });
-    }
-
-    const accountPairs = fullText.split(',');
-    let addedCount = accountPairs.filter(p => p.trim().includes(':')).length;
-
-    return ctx.reply(`✅ সফলভাবে **${addedCount}** টি ইন্সটাগ্রাম অ্যাকাউন্ট গ্রহণ করা হয়েছে!`);
+async function showUserPanel(ctx) {
+    const isAdmin = Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID);
+    return ctx.reply('🔙 **ইউজার প্যানেলে ফিরে এসেছেন।**', getMainMenu('bn', isAdmin));
 }
 
-// .txt ফাইল দিয়ে স্টক আপলোড
-async function handleDocumentUpload(ctx) {
-    const userId = ctx.from.id;
-    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
-
-    const document = ctx.message.document;
-    if (!document || !document.file_name.endsWith('.txt')) {
-        return ctx.reply('⚠️ অনুগ্রহ করে একটি `.txt` ফাইল আপলোড করুন।');
-    }
-
+// ২. সকল ইউজার লিস্ট
+async function handleAllUsersList(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     try {
-        const fileLink = await ctx.telegram.getFileLink(document.file_id);
-        
-        https.get(fileLink.href, (res) => {
-            let data = '';
-            res.on('data', (chunk) => { data += chunk; });
-            res.on('end', () => {
-                const lines = data.split('\n');
-                let validLines = lines.filter(line => line.trim().includes(':')).length;
-                return ctx.reply(`🎉 **ফাইল প্রসেস সফল!**\nমোট **${validLines}** টি ইন্সটাগ্রাম অ্যাকাউন্ট যুক্ত করা হয়েছে।`);
-            });
-        }).on('error', (err) => {
-            console.error('File Download Error:', err);
-            return ctx.reply('❌ ফাইল ডাউনলোড করতে সমস্যা হয়েছে।');
+        const users = await User.find().sort({ joinedAt: -1 }).limit(50);
+        const total = await User.countDocuments();
+        let msg = `📊 **মোট ইউজার সংখ্যা:** ${total} জন\n\n**সাম্প্রতিক ইউজারগণ:**\n`;
+
+        users.forEach((u, index) => {
+            msg += `${index + 1}. ${u.firstName} (${u.telegramId}) - ব্যালেন্স: ৳${u.balance} ${u.isBlocked ? '❌ [ব্লকড]' : '✅'}\n`;
         });
 
-    } catch (error) {
-        console.error('File Processing Error:', error);
-        return ctx.reply('❌ ফাইল প্রসেস করতে সমস্যা হয়েছে।');
+        return ctx.reply(msg, { parse_mode: 'Markdown' });
+    } catch (err) {
+        console.error(err);
+        return ctx.reply('ইউজার লিস্ট আনতে সমস্যা হয়েছে।');
     }
 }
 
-// গিফট কার্ড হ্যান্ডলার
-async function handleCreateGiftCard(ctx) {
-    const userId = ctx.from.id;
-    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
+// ৩. শীর্ষ রেফারেল লিস্ট
+async function handleTopReferrals(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    try {
+        const topUsers = await User.find().sort({ totalReferrals: -1 }).limit(20);
+        let msg = `🏆 **শীর্ষ ২০ জন রেফারেলকারী:**\n\n`;
 
-    const args = ctx.message.text.split(' ');
-    if (args.length < 3) {
-        return ctx.reply('⚠️ ফরম্যাট ভুল! সঠিক ফরম্যাট: `/creategift CODE 50`', { parse_mode: 'Markdown' });
+        topUsers.forEach((u, i) => {
+            msg += `${i + 1}. ${u.firstName} (${u.telegramId}) ➔ মোট রেফার: **${u.totalReferrals}** জন\n`;
+        });
+
+        return ctx.reply(msg, { parse_mode: 'Markdown' });
+    } catch (err) {
+        return ctx.reply('রেফারেল লিস্ট আনতে সমস্যা হয়েছে।');
     }
-
-    const code = args[1];
-    const amount = parseFloat(args[2]);
-
-    return ctx.reply(`✅ সফলভাবে **৳${amount}** টাকার গিফট কার্ড তৈরি হয়েছে!\n🎟️ কোড: \`${code}\``, { parse_mode: 'Markdown' });
 }
 
-module.exports = { 
-    handleAdminPanel, 
-    handleCreateGiftCard, 
-    handleAddInstaStock, 
-    handleDocumentUpload 
+// ৪. প্ল্যাটফর্ম অনুযায়ী স্টক ও কাজের পরিসংখ্যান
+async function handlePlatformStock(ctx, platformName) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    try {
+        const available = await Account.countDocuments({ platform: platformName.toLowerCase(), isUsed: false });
+        const used = await Account.countDocuments({ platform: platformName.toLowerCase(), isUsed: true });
+
+        return ctx.reply(
+            `📦 **${platformName} স্টক বিবরণ:**\n\n` +
+            `🔹 খালি স্টক: **${available}** টি\n` +
+            `🔹 ব্যবহৃত স্টক: **${used}** টি\n\n` +
+            `💡 নতুন স্টক যোগ করতে লিখুন:\n\`/add${platformName.toLowerCase()} user:pass user2:pass2\``,
+            { parse_mode: 'Markdown' }
+        );
+    } catch (err) {
+        return ctx.reply('স্টক ডেটা আনতে সমস্যা হয়েছে।');
+    }
+}
+
+// ৫. ব্লক/আনব্লক ইউজার কমান্ড (/block /unblock)
+async function handleBlockUser(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    const parts = ctx.message.text.split(' ');
+    const targetId = parts[1];
+
+    if (!targetId) return ctx.reply('⚠️ ব্যবহার: `/block <telegram_id>`', { parse_mode: 'Markdown' });
+
+    await User.updateOne({ telegramId: Number(targetId) }, { isBlocked: true });
+    return ctx.reply(`🚫 ইউজার \`${targetId}\` সফলভাবে ব্লক করা হয়েছে!`, { parse_mode: 'Markdown' });
+}
+
+async function handleUnblockUser(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    const parts = ctx.message.text.split(' ');
+    const targetId = parts[1];
+
+    if (!targetId) return ctx.reply('⚠️ ব্যবহার: `/unblock <telegram_id>`', { parse_mode: 'Markdown' });
+
+    await User.updateOne({ telegramId: Number(targetId) }, { isBlocked: false });
+    return ctx.reply(`✅ ইউজার \`${targetId}\` আনব্লক করা হয়েছে!`, { parse_mode: 'Markdown' });
+}
+
+// ৬. ইউজার ব্যালেন্স পরিবর্তন (/setbalance)
+async function handleSetBalance(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    const parts = ctx.message.text.split(' ');
+    const targetId = parts[1];
+    const newBalance = parts[2];
+
+    if (!targetId || !newBalance) {
+        return ctx.reply('⚠️ ব্যবহার: `/setbalance <telegram_id> <amount>`', { parse_mode: 'Markdown' });
+    }
+
+    await User.updateOne({ telegramId: Number(targetId) }, { balance: Number(newBalance) });
+    return ctx.reply(`💰 ইউজার \`${targetId}\`-এর নতুন ব্যালেন্স **৳${newBalance}** করা হয়েছে!`, { parse_mode: 'Markdown' });
+}
+
+// ৭. অল ইউজার ব্রডকাস্ট মেসেজ (/broadcast)
+async function handleBroadcast(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    const broadcastMsg = ctx.message.text.replace('/broadcast', '').trim();
+
+    if (!broadcastMsg) {
+        return ctx.reply('⚠️ ব্যবহার: `/broadcast আপনার মেসেজ এখানে লিখুন`', { parse_mode: 'Markdown' });
+    }
+
+    const users = await User.find({}, 'telegramId');
+    let success = 0;
+    let failed = 0;
+
+    ctx.reply(`📢 ${users.length} জন ইউজারের কাছে নোটিশ পাঠানো শুরু হচ্ছে...`);
+
+    for (const u of users) {
+        try {
+            await ctx.telegram.sendMessage(u.telegramId, `📢 **অফিশিয়াল নোটিশ:**\n\n${broadcastMsg}`, { parse_mode: 'Markdown' });
+            success++;
+        } catch (e) {
+            failed++;
+        }
+    }
+
+    return ctx.reply(`✅ **ব্রডকাস্ট সম্পন্ন!**\n\n✔ সফল: ${success} জন\n✖ ব্যর্থ: ${failed} জন`);
+}
+
+// ৮. সিঙ্গেল ইউজার মেসেজ (/sendmessage)
+async function handleSingleMessage(ctx) {
+    if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
+    const parts = ctx.message.text.split(' ');
+    const targetId = parts[1];
+    const textMsg = parts.slice(2).join(' ');
+
+    if (!targetId || !textMsg) {
+        return ctx.reply('⚠️ ব্যবহার: `/sendmessage <telegram_id> আপনার মেসেজ`', { parse_mode: 'Markdown' });
+    }
+
+    try {
+        await ctx.telegram.sendMessage(Number(targetId), `📩 **এডমিন থেকে মেসেজ:**\n\n${textMsg}`, { parse_mode: 'Markdown' });
+        return ctx.reply(`✅ ইউজার \`${targetId}\`-এর কাছে মেসেজটি পাঠানো হয়েছে!`, { parse_mode: 'Markdown' });
+    } catch (err) {
+        return ctx.reply('❌ মেসেজটি পাঠানো যায়নি। ইউজার বট ব্লক করে রেখে থাকতে পারে।');
+    }
+}
+
+module.exports = {
+    showAdminPanel,
+    showUserPanel,
+    handleAllUsersList,
+    handleTopReferrals,
+    handlePlatformStock,
+    handleBlockUser,
+    handleUnblockUser,
+    handleSetBalance,
+    handleBroadcast,
+    handleSingleMessage
 };
