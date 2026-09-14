@@ -2,6 +2,7 @@ const User = require('../models/User');
 const TaskSubmission = require('../models/TaskSubmission');
 const InstagramStock = require('../models/InstagramStock');
 const GiftCard = require('../models/GiftCard');
+const axios = require('axios');
 
 const ADMIN_TELEGRAM_ID = 7689311203;
 
@@ -23,9 +24,13 @@ async function handleAdminPanel(ctx) {
             `👥 মোট ইউজার: **${totalUsers}**\n` +
             `⏳ পেন্ডিং প্রুফ: **${pendingSubmissions}**\n` +
             `📸 খালি ইন্সটাগ্রাম স্টক: **${availableInstaStock}**\n\n` +
-            `📌 **কমান্ডসমূহ:**\n` +
-            `/creategift <কোড> <পরিমাণ> - নতুন গিফট কার্ড তৈরি করতে\n\n` +
-            `💡 _খুব শীঘ্রই বাল্ক অ্যাকাউন্ট আপলোড ইন্টারফেস যুক্ত করা হচ্ছে।_`;
+            `📌 **বাল্ক ইন্সটাগ্রাম আপলোড কমান্ডসমূহ:**\n` +
+            `1️⃣ **একক/বাল্ক টেক্সট যোগ করতে:**\n` +
+            `\`/addinsta user1:pass1, user2:pass2\`\n\n` +
+            `2️⃣ **TXT ফাইল আপলোড:**\n` +
+            `যে কোনো \`.txt\` ফাইলে প্রতিটি লাইনে \`username:password\` লিখে এখানে পাঠালেই সব স্টক যোগ হয়ে যাবে!\n\n` +
+            `🎟️ **গিফট কার্ড কমান্ড:**\n` +
+            `\`/creategift <কোড> <পরিমাণ>\``;
 
         return ctx.reply(adminMessage, { parse_mode: 'Markdown' });
     } catch (error) {
@@ -34,10 +39,77 @@ async function handleAdminPanel(ctx) {
     }
 }
 
-// গিফট কার্ড তৈরি করার কমান্ড
+// টেক্সট মেসেজ দিয়ে বাল্ক ইন্সটাগ্রাম স্টক যোগ
+async function handleAddInstaStock(ctx) {
+    const userId = ctx.from.id;
+    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
+
+    const fullText = ctx.message.text.replace('/addinsta', '').trim();
+    if (!fullText) {
+        return ctx.reply('⚠️ সঠিক ফরম্যাট: `/addinsta user1:pass1, user2:pass2`', { parse_mode: 'Markdown' });
+    }
+
+    const accountPairs = fullText.split(',');
+    let addedCount = 0;
+
+    for (let pair of accountPairs) {
+        const [username, password] = pair.trim().split(':');
+        if (username && password) {
+            await InstagramStock.create({
+                username: username.trim(),
+                password: password.trim(),
+                isAssigned: false
+            });
+            addedCount++;
+        }
+    }
+
+    return ctx.reply(`✅ সফলভাবে **${addedCount}** টি ইন্সটাগ্রাম অ্যাকাউন্ট স্টকে যোগ করা হয়েছে!`);
+}
+
+// .txt ফাইল ডকুমেন্টের মাধ্যমে ইন্সটাগ্রাম অ্যাকাউন্ট স্টক যোগ
+async function handleDocumentUpload(ctx) {
+    const userId = ctx.from.id;
+    if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
+
+    const document = ctx.message.document;
+    if (!document || !document.file_name.endsWith('.txt')) {
+        return ctx.reply('⚠️ অনুগ্রহ করে একটি `.txt` ফাইল আপলোড করুন।');
+    }
+
+    try {
+        const fileLink = await ctx.telegram.getFileLink(document.file_id);
+        const response = await axios.get(fileLink.href);
+        const fileContent = response.data;
+
+        const lines = fileContent.split('\n');
+        let addedCount = 0;
+
+        for (let line of lines) {
+            const cleanLine = line.trim();
+            if (cleanLine && cleanLine.includes(':')) {
+                const [username, password] = cleanLine.split(':');
+                if (username && password) {
+                    await InstagramStock.create({
+                        username: username.trim(),
+                        password: password.trim(),
+                        isAssigned: false
+                    });
+                    addedCount++;
+                }
+            }
+        }
+
+        return ctx.reply(`🎉 **ফাইল প্রসেস সফল!**\nমোট **${addedCount}** টি ইন্সটাগ্রাম অ্যাকাউন্ট স্টকে যুক্ত করা হয়েছে।`);
+    } catch (error) {
+        console.error('File Processing Error:', error);
+        return ctx.reply('❌ ফাইল থেকে অ্যাকাউন্ট রিড করতে সমস্যা হয়েছে।');
+    }
+}
+
+// গিফট কার্ড তৈরি
 async function handleCreateGiftCard(ctx) {
     const userId = ctx.from.id;
-
     if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
 
     const args = ctx.message.text.split(' ');
@@ -56,8 +128,13 @@ async function handleCreateGiftCard(ctx) {
         });
         return ctx.reply(`✅ সফলভাবে **৳${amount}** টাকার গিফট কার্ড তৈরি হয়েছে!\n🎟️ কোড: \`${code}\``, { parse_mode: 'Markdown' });
     } catch (error) {
-        return ctx.reply('❌ গিফট কার্ড তৈরি করা যায়নি। কোডটি হয়তো ইতিমধ্যে বিদ্যমান।');
+        return ctx.reply('❌ গিফট কার্ড তৈরি করা যায়নি।');
     }
 }
 
-module.exports = { handleAdminPanel, handleCreateGiftCard };
+module.exports = { 
+    handleAdminPanel, 
+    handleCreateGiftCard, 
+    handleAddInstaStock, 
+    handleDocumentUpload 
+};
