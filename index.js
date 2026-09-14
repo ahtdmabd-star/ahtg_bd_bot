@@ -8,6 +8,7 @@ const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://ahtg-bd-
 
 const ADMIN_TELEGRAM_ID = 7689311203;
 const CHANNEL_USERNAME = '@AHTG_OFFICIAL';
+const MINI_APP_URL = 'https://alhudatechglobal.shop/dashboard.php';
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
@@ -35,10 +36,11 @@ app.get('/', (req, res) => {
 
 async function checkMembership(userId) {
     try {
-        const channelMember = await bot.telegram.getChatMember(CHANNEL_USERNAME, userId);
-        const isChannelMember = ['member', 'administrator', 'creator'].includes(channelMember.status);
-        return isChannelMember;
+        const chatMember = await bot.telegram.getChatMember(CHANNEL_USERNAME, userId);
+        const status = chatMember.status;
+        return ['member', 'administrator', 'creator'].includes(status);
     } catch (error) {
+        console.error('Membership Check Error:', error);
         return false;
     }
 }
@@ -61,7 +63,7 @@ bot.start(async (ctx) => {
     const isJoined = await checkMembership(userId);
     if (!isJoined) {
         return ctx.reply(
-            `স্বাগতম ${firstName}!\n\nবটটি ব্যবহার করতে এবং আমাদের মিনি অ্যাপে প্রবেশ করতে হলে অবশ্যই আমাদের চ্যানেল ও গ্রুপে জয়েন করতে হবে।`,
+            `স্বাগতম ${firstName}!\n\nবটটি ব্যবহার করতে এবং আমাদের মিনি অ্যাপে প্রবেশ করতে হলে অবশ্যই আমাদের অফিসিয়াল চ্যানেল ও গ্রুপে জয়েন করতে হবে।`,
             Markup.inlineKeyboard([
                 [Markup.button.url('📢 আমাদের চ্যানেল', 'https://t.me/AHTG_OFFICIAL')],
                 [Markup.button.url('👥 আমাদের গ্রুপ', 'https://t.me/+N026NocN90tlMTM1')],
@@ -90,7 +92,7 @@ bot.action('verify_membership', async (ctx) => {
 
 function sendMainMenu(ctx, isAdmin) {
     let keyboard = [
-        [Markup.button.webApp('🚀 ওপেন টাস্ক মিনি অ্যাপ', 'https://ahtg-bd-bot.onrender.com')]
+        [Markup.button.webApp('🚀 ওপেন টাস্ক মিনি অ্যাপ', MINI_APP_URL)]
     ];
 
     if (isAdmin) {
@@ -150,7 +152,7 @@ bot.action('admin_msg_prompt', async (ctx) => {
 bot.action('admin_ban_prompt', async (ctx) => {
     if (ctx.from.id !== ADMIN_TELEGRAM_ID) return;
     await ctx.editMessageText(
-        '🚫 কোনো ইউজারকে বট থেকে ব্যান বা বাদ দিতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/ban [ইউজার_আইডি]',
+        '🚫 কোনো ইউজারকে বটকে ব্যান বা বাদ দিতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/ban [ইউজার_আইডি]',
         Markup.inlineKeyboard([[Markup.button.callback('⬅️ ব্যাক', 'admin_menu')]])
     );
 });
