@@ -42,7 +42,7 @@ async function handleStart(ctx) {
 
         const isJoined = await checkMembership(ctx.telegram, userId);
 
-        if (!isJoined && userId !== ADMIN_TELEGRAM_ID) {
+        if (!isJoined && Number(userId) !== Number(ADMIN_TELEGRAM_ID)) {
             return ctx.reply(
                 `স্বাগতম ${firstName}!\n\nবটটি ব্যবহার করতে আমাদের অফিশিয়াল চ্যানেল ও গ্রুপে জয়েন করুন।`,
                 Markup.inlineKeyboard([
@@ -67,4 +67,36 @@ async function handleStart(ctx) {
     }
 }
 
-module.exports = { handleStart };
+// Callback for Verification Button
+async function handleVerifyCallback(ctx) {
+    try {
+        await ctx.answerCbQuery();
+        const userId = ctx.from.id;
+        const firstName = ctx.from.first_name || 'User';
+
+        const isJoined = await checkMembership(ctx.telegram, userId);
+
+        if (!isJoined && Number(userId) !== Number(ADMIN_TELEGRAM_ID)) {
+            return ctx.reply('⚠️ আপনি এখনো আমাদের চ্যানেল বা গ্রুপে জয়েন করেননি! অনুগ্রহ করে জয়েন করে আবার "✅ ভেরিফাই করুন" এ চাপ দিন।');
+        }
+
+        await User.updateOne({ telegramId: userId }, { isVerified: true });
+
+        const isAdmin = Number(userId) === Number(ADMIN_TELEGRAM_ID);
+        
+        // পুরানো ইনলাইন কীবোর্ড মেসেজটি ডিলিট করে মূল মেনু শো করবে
+        try {
+            await ctx.deleteMessage();
+        } catch (e) {}
+
+        return ctx.reply(
+            `🎉 আপনার ভেরিফিকেশন সফল হয়েছে!\n\nAl-Huda Task প্ল্যাটফর্মে আপনাকে স্বাগতম। নিচের বাটনগুলো ব্যবহার করে আপনার কাজ শুরু করুন:`,
+            getMainMenu('bn', isAdmin)
+        );
+    } catch (error) {
+        console.error('Verify Callback Error:', error);
+        return ctx.reply('ভেরিফাই করতে সমস্যা হয়েছে, আবার চেষ্টা করুন।');
+    }
+}
+
+module.exports = { handleStart, handleVerifyCallback };
