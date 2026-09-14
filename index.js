@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 // এনভায়রনমেন্ট ভ্যারিয়েবল বা হার্ডকোডেড টোকেন ও ইউআরআই
 const BOT_TOKEN = process.env.BOT_TOKEN || '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
-const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'আপনার_রেন্ডার_ওয়েব_সার্ভিস_লিংক'; // যেমন: https://your-app-name.onrender.com
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://ahtg-bd-bot.onrender.com'; // যেমন: https://your-app-name.onrender.com
 
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
