@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const http = require('http');
 
 // টোকেন ও ডাটাবেজ কানেকশন
-const BOT_TOKEN = '8651381547:AAF5jgoHUV18vlTFee47unNL_9w06YkgxdY';
+const BOT_TOKEN = '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
 const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
 const PORT = process.env.PORT || 3000;
 
