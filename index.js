@@ -7,8 +7,9 @@ const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://ahtg-bd-
 const ADMIN_TELEGRAM_ID = 7689311203;
 const PORT = process.env.PORT || 10000;
 
-// আপনার ইনফিনিটি ফ্রি ওয়েবসাইটের সঠিক লিংক এখানে দিন (যেমন: https://yourdomain.com/api_register.php)
-const WEBSITE_API_URL = 'https://আপনার_ওয়েবসাইট_ডোমেইন.com/api_register.php';
+// আপনার কাস্টম ডোমেইন
+const YOUR_DOMAIN = 'alhudatechglobal.shop';
+const WEBSITE_API_URL = `https://${YOUR_DOMAIN}/api_register.php`;
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
@@ -43,7 +44,7 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
                             { text: '👥 মোট রেফার সংখ্যা', callback_data: 'get_ref_count' }
                         ],
                         [
-                            { text: '🚀 ওপেন অ্যাপ (ওয়েবসাইট)', web_app: { url: 'https://আপনার_ওয়েবসাইট_ডোমেইন.com/support.php' } }
+                            { text: '🚀 ওপেন অ্যাপ (ওয়েবসাইট)', web_app: { url: `https://${YOUR_DOMAIN}/support.php` } }
                         ]
                     ]
                 }
@@ -66,8 +67,8 @@ bot.on('callback_query', async (query) => {
     const action = query.data;
 
     try {
-        const response = await `${WEBSITE_API_URL}?telegram_id=${userId}`;
-        const res = await fetch(response);
+        const apiUrl = `${WEBSITE_API_URL}?telegram_id=${userId}`;
+        const res = await fetch(apiUrl);
         const data = await res.json();
 
         if (action === 'get_ref_link') {
