@@ -1,20 +1,16 @@
 const { Markup } = require('telegraf');
-const bn = require('../locales/bn');
-const en = require('../locales/en');
 
 const MINI_APP_URL = 'https://alhudatechglobal.shop/dashboard.php';
 
 function getMainMenu(lang = 'bn', isAdmin = false) {
-    const t = lang === 'en' ? en : bn;
-
     let keyboard = [
-        [Markup.button.webApp(t.btn_mini_app, MINI_APP_URL)],
-        [t.btn_tasks, t.btn_profile],
-        [t.btn_withdraw, t.btn_support]
+        [Markup.button.webApp('🚀 ওপেন টাস্ক অ্যাপ', MINI_APP_URL)],
+        ['📸 ইন্সটাগ্রাম কাজ', '👤 প্রোফাইল'],
+        ['💳 উইথড্র', '📢 সাপোর্ট']
     ];
 
     if (isAdmin) {
-        keyboard.push([t.btn_admin]);
+        keyboard.push(['👑 অ্যাডমিন প্যানেল']);
     }
 
     return Markup.keyboard(keyboard).resize();
