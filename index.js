@@ -31,7 +31,7 @@ app.use(express.json());
 app.use(bot.webhookCallback(`/webhook/${BOT_TOKEN}`));
 
 app.get('/', (req, res) => {
-    res.send('Al-Huda Task Bot with Admin Menu & Force Sub is running!');
+    res.send('Al-Huda Task Bot with Permanent Menu Keyboard is running!');
 });
 
 async function checkMembership(userId) {
@@ -90,33 +90,77 @@ bot.action('verify_membership', async (ctx) => {
     sendMainMenu(ctx, userId === ADMIN_TELEGRAM_ID);
 });
 
+// স্থায়ী রিপ্লাই কিবোর্ড (Persistent Reply Keyboard) ফাংশন
 function sendMainMenu(ctx, isAdmin) {
     let keyboard = [
-        [Markup.button.webApp('🚀 ওপেন টাস্ক মিনি অ্যাপ', MINI_APP_URL)]
+        [Markup.button.webApp('🚀 ওপেন টাস্ক মিনি অ্যাপ', MINI_APP_URL)],
+        ['📋 টাস্ক লিস্ট', '👤 আমার প্রোফাইল'],
+        ['💳 উইথড্র', '📢 অফিসিয়াল সাপোর্ট']
     ];
 
     if (isAdmin) {
-        keyboard.push([Markup.button.callback('👑 অ্যাডমিন মেনু প্যানেল', 'admin_menu')]);
+        keyboard.push(['👑 অ্যাডমিন প্যানেল']);
     }
 
-    ctx.reply('স্বাগতম! নিচের অপশনগুলো থেকে আপনার প্রয়োজনীয় কাজটি বেছে নিন:', Markup.inlineKeyboard(keyboard));
+    ctx.reply(
+        'স্বাগতম! নিচের বাটনগুলো ব্যবহার করে আপনার প্রয়োজনীয় কাজটি সহজে পরিচালনা করুন:',
+        Markup.keyboard(keyboard).resize()
+    );
 }
 
-bot.action('admin_menu', async (ctx) => {
-    if (ctx.from.id !== ADMIN_TELEGRAM_ID) return ctx.answerCbQuery('অনুমতি নেই!', { show_alert: true });
+// স্থায়ী কিবোর্ড বাটনগুলোর হ্যান্ডলার (Text Handlers)
+bot.hears('🚀 ওপেন টাস্ক মিনি অ্যাপ', (ctx) => {
+    ctx.reply('নিচের বাটনে ক্লিক করে মিনি অ্যাপ ওপেন করুন:', Markup.inlineKeyboard([
+        [Markup.button.webApp('🚀 মিনি অ্যাপ খুলুন', MINI_APP_URL)]
+    ]));
+});
 
-    await ctx.editMessageText(
+bot.hears('📋 টাস্ক লিস্ট', (ctx) => {
+    ctx.reply('নতুন নতুন টাস্ক সম্পন্ন করতে আমাদের মিনি অ্যাপ ব্যবহার করুন।', Markup.inlineKeyboard([
+        [Markup.button.webApp('🚀 টাস্ক ড্যাশবোর্ড', MINI_APP_URL)]
+    ]));
+});
+
+bot.hears('👤 আমার প্রোফাইল', async (ctx) => {
+    const userId = ctx.from.id;
+    const user = await User.findOne({ telegramId: userId });
+    
+    ctx.reply(
+        `👤 **আপনার প্রোফাইল তথ্য:**\n\n` +
+        `নাম: ${ctx.from.first_name}\n` +
+        `ইউজার আইডি: \`${userId}\`\n` +
+        `স্ট্যাটাস: ${user && user.isVerified ? '✅ ভেরিফাইড' : '❌ আনভেরিফাইড'}`,
+        { parse_mode: 'Markdown' }
+    );
+});
+
+bot.hears('💳 উইথড্র', (ctx) => {
+    ctx.reply('উইথড্র রিকোয়েস্ট পাঠাতে সরাসরি আমাদের টাস্ক ড্যাশবোর্ডে প্রবেশ করুন।', Markup.inlineKeyboard([
+        [Markup.button.webApp('💳 ড্যাশবোর্ডে যান', MINI_APP_URL)]
+    ]));
+});
+
+bot.hears('📢 অফিসিয়াল সাপোর্ট', (ctx) => {
+    ctx.reply('যেকোনো সাহায্য বা তথ্যের জন্য আমাদের অফিসিয়াল গ্রুপে যোগাযোগ করুন:', Markup.inlineKeyboard([
+        [Markup.button.url('👥 সাপোর্ট গ্রুপ', 'https://t.me/+N026NocN90tlMTM1')]
+    ]));
+});
+
+bot.hears('👑 অ্যাডমিন প্যানেল', async (ctx) => {
+    if (ctx.from.id !== ADMIN_TELEGRAM_ID) return ctx.reply('এই অপশনটি শুধুমাত্র অ্যাডমিনের জন্য।');
+    
+    ctx.reply(
         'Al-Huda Task Admin Control Panel\n\nনিচের অপশনগুলো ব্যবহার করে পুরো বট কন্ট্রোল করুন:',
         Markup.inlineKeyboard([
             [Markup.button.callback('📊 মোট ইউজার লিস্ট', 'admin_user_list')],
             [Markup.button.callback('📢 সবাইকে নোটিশ পাঠান (Broadcast)', 'admin_broadcast_prompt')],
             [Markup.button.callback('✉️ নির্দিষ্ট ইউজারকে মেসেজ পাঠান', 'admin_msg_prompt')],
-            [Markup.button.callback('🚫 ইউজার ব্যান/বের করে দিন', 'admin_ban_prompt')],
-            [Markup.button.callback('🔙 মূল মেনুতে ফিরুন', 'back_home')]
+            [Markup.button.callback('🚫 ইউজার ব্যান/বের করে দিন', 'admin_ban_prompt')]
         ])
     );
 });
 
+// অ্যাডমিন প্যানেল একশনসমূহ
 bot.action('admin_user_list', async (ctx) => {
     if (ctx.from.id !== ADMIN_TELEGRAM_ID) return;
     const users = await User.find({});
@@ -127,41 +171,25 @@ bot.action('admin_user_list', async (ctx) => {
     
     if (text.length > 4096) text = text.substring(0, 4000) + '\n...তালিকা দীর্ঘ হওয়ায় সংক্ষেপ করা হলো।';
     
-    await ctx.editMessageText(text, {
-        parse_mode: 'Markdown',
-        ...Markup.inlineKeyboard([[Markup.button.callback('⬅️ ব্যাক', 'admin_menu')]])
-    });
+    await ctx.reply(text, { parse_mode: 'Markdown' });
 });
 
 bot.action('admin_broadcast_prompt', async (ctx) => {
     if (ctx.from.id !== ADMIN_TELEGRAM_ID) return;
-    await ctx.editMessageText(
-        '📢 সকল ইউজারের কাছে নোটিশ পাঠাতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/broadcast আপনার নোটিশের লেখা',
-        Markup.inlineKeyboard([[Markup.button.callback('⬅️ ব্যাক', 'admin_menu')]])
-    );
+    await ctx.reply('📢 সকল ইউজারের কাছে নোটিশ পাঠাতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/broadcast আপনার নোটিশের লেখা');
 });
 
 bot.action('admin_msg_prompt', async (ctx) => {
     if (ctx.from.id !== ADMIN_TELEGRAM_ID) return;
-    await ctx.editMessageText(
-        '✉️ নির্দিষ্ট কোনো ইউজারকে মেসেজ পাঠাতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/sendmsg [ইউজার_আইডি] [আপনার_মেসেজ]',
-        Markup.inlineKeyboard([[Markup.button.callback('⬅️ ব্যাক', 'admin_menu')]])
-    );
+    await ctx.reply('✉️ নির্দিষ্ট কোনো ইউজারকে মেসেজ পাঠাতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/sendmsg [ইউজার_আইডি] [আপনার_মেসেজ]');
 });
 
 bot.action('admin_ban_prompt', async (ctx) => {
     if (ctx.from.id !== ADMIN_TELEGRAM_ID) return;
-    await ctx.editMessageText(
-        '🚫 কোনো ইউজারকে বটকে ব্যান বা বাদ দিতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/ban [ইউজার_আইডি]',
-        Markup.inlineKeyboard([[Markup.button.callback('⬅️ ব্যাক', 'admin_menu')]])
-    );
+    await ctx.reply('🚫 কোনো ইউজারকে বট থেকে ব্যান বা বাদ দিতে চ্যাটে এই কমান্ডটি লিখুন:\n\n/ban [ইউজার_আইডি]');
 });
 
-bot.action('back_home', async (ctx) => {
-    await ctx.deleteMessage();
-    sendMainMenu(ctx, ctx.from.id === ADMIN_TELEGRAM_ID);
-});
-
+// অ্যাডমিন কমান্ডস
 bot.command('broadcast', async (ctx) => {
     if (ctx.from.id !== ADMIN_TELEGRAM_ID) return;
     const msg = ctx.message.text.replace('/broadcast', '').trim();
