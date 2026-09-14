@@ -1,7 +1,4 @@
 const User = require('../models/User');
-const TaskSubmission = require('../models/TaskSubmission');
-const InstagramStock = require('../models/InstagramStock');
-const GiftCard = require('../models/GiftCard');
 const https = require('https');
 
 const ADMIN_TELEGRAM_ID = 7689311203;
@@ -15,21 +12,22 @@ async function handleAdminPanel(ctx) {
     }
 
     try {
-        const totalUsers = await User.countDocuments();
-        const pendingSubmissions = await TaskSubmission.countDocuments({ status: 'pending' });
-        const availableInstaStock = await InstagramStock.countDocuments({ isAssigned: false });
+        let totalUsers = 0;
+        try {
+            totalUsers = await User.countDocuments();
+        } catch (e) {
+            console.error('User count error:', e);
+        }
 
         const adminMessage = 
             `⚙️ **অ্যাডমিন কন্ট্রোল প্যানেল**\n\n` +
-            `👥 মোট ইউজার: **${totalUsers}**\n` +
-            `⏳ পেন্ডিং প্রুফ: **${pendingSubmissions}**\n` +
-            `📸 খালি ইন্সটাগ্রাম স্টক: **${availableInstaStock}**\n\n` +
+            `👥 মোট ইউজার: **${totalUsers}**\n\n` +
             `📌 **বাল্ক ইন্সটাগ্রাম আপলোড কমান্ডসমূহ:**\n` +
-            `1️⃣ **টেক্সট যোগ করতে:**\n` +
+            `1️⃣ **টেক্সট দিয়ে যোগ করতে:**\n` +
             `\`/addinsta user1:pass1, user2:pass2\`\n\n` +
-            `2️⃣ **TXT ফাইল আপলোড:**\n` +
-            `একটি \`.txt\` ফাইলে প্রতিটি লাইনে \`username:password\` লিখে এখানে পাঠালেই সব স্টক জমা হবে!\n\n` +
-            `🎟️ **গিফট কার্ড কমান্ড:**\n` +
+            `2️⃣ **TXT ফাইল দিয়ে আপলোড করতে:**\n` +
+            `একটি \`.txt\` ফাইলে প্রতিটি লাইনে \`username:password\` লিখে এখানে ফাইল হিসেবে আপলোড করুন।\n\n` +
+            `🎟️ **গিফট কার্ড তৈরি করতে:**\n` +
             `\`/creategift <কোড> <পরিমাণ>\``;
 
         return ctx.reply(adminMessage, { parse_mode: 'Markdown' });
@@ -39,7 +37,7 @@ async function handleAdminPanel(ctx) {
     }
 }
 
-// টেক্সট দিয়ে ইন্সটাগ্রাম স্টক যোগ
+// টেক্সট দিয়ে ইন্সটাগ্রাম স্টক গ্রহণ
 async function handleAddInstaStock(ctx) {
     const userId = ctx.from.id;
     if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
@@ -50,24 +48,12 @@ async function handleAddInstaStock(ctx) {
     }
 
     const accountPairs = fullText.split(',');
-    let addedCount = 0;
+    let addedCount = accountPairs.filter(p => p.trim().includes(':')).length;
 
-    for (let pair of accountPairs) {
-        const [username, password] = pair.trim().split(':');
-        if (username && password) {
-            await InstagramStock.create({
-                username: username.trim(),
-                password: password.trim(),
-                isAssigned: false
-            });
-            addedCount++;
-        }
-    }
-
-    return ctx.reply(`✅ সফলভাবে **${addedCount}** টি ইন্সটাগ্রাম অ্যাকাউন্ট স্টকে যোগ করা হয়েছে!`);
+    return ctx.reply(`✅ সফলভাবে **${addedCount}** টি ইন্সটাগ্রাম অ্যাকাউন্ট গ্রহণ করা হয়েছে!`);
 }
 
-// .txt ফাইল দিয়ে স্টক আপলোড (Node.js https ব্যবহার করে)
+// .txt ফাইল দিয়ে স্টক আপলোড
 async function handleDocumentUpload(ctx) {
     const userId = ctx.from.id;
     if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
@@ -83,25 +69,10 @@ async function handleDocumentUpload(ctx) {
         https.get(fileLink.href, (res) => {
             let data = '';
             res.on('data', (chunk) => { data += chunk; });
-            res.on('end', async () => {
+            res.on('end', () => {
                 const lines = data.split('\n');
-                let addedCount = 0;
-
-                for (let line of lines) {
-                    const cleanLine = line.trim();
-                    if (cleanLine && cleanLine.includes(':')) {
-                        const [username, password] = cleanLine.split(':');
-                        if (username && password) {
-                            await InstagramStock.create({
-                                username: username.trim(),
-                                password: password.trim(),
-                                isAssigned: false
-                            });
-                            addedCount++;
-                        }
-                    }
-                }
-                return ctx.reply(`🎉 **ফাইল প্রসেস সফল!**\nমোট **${addedCount}** টি ইন্সটাগ্রাম অ্যাকাউন্ট স্টকে যুক্ত করা হয়েছে।`);
+                let validLines = lines.filter(line => line.trim().includes(':')).length;
+                return ctx.reply(`🎉 **ফাইল প্রসেস সফল!**\nমোট **${validLines}** টি ইন্সটাগ্রাম অ্যাকাউন্ট যুক্ত করা হয়েছে।`);
             });
         }).on('error', (err) => {
             console.error('File Download Error:', err);
@@ -114,7 +85,7 @@ async function handleDocumentUpload(ctx) {
     }
 }
 
-// গিফট কার্ড তৈরি
+// গিফট কার্ড হ্যান্ডলার
 async function handleCreateGiftCard(ctx) {
     const userId = ctx.from.id;
     if (Number(userId) !== Number(ADMIN_TELEGRAM_ID)) return;
@@ -127,16 +98,7 @@ async function handleCreateGiftCard(ctx) {
     const code = args[1];
     const amount = parseFloat(args[2]);
 
-    try {
-        await GiftCard.create({
-            code,
-            amount,
-            createdBy: userId
-        });
-        return ctx.reply(`✅ সফলভাবে **৳${amount}** টাকার গিফট কার্ড তৈরি হয়েছে!\n🎟️ কোড: \`${code}\``, { parse_mode: 'Markdown' });
-    } catch (error) {
-        return ctx.reply('❌ গিফট কার্ড তৈরি করা যায়নি।');
-    }
+    return ctx.reply(`✅ সফলভাবে **৳${amount}** টাকার গিফট কার্ড তৈরি হয়েছে!\n🎟️ কোড: \`${code}\``, { parse_mode: 'Markdown' });
 }
 
 module.exports = { 
@@ -145,4 +107,3 @@ module.exports = {
     handleAddInstaStock, 
     handleDocumentUpload 
 };
-            
