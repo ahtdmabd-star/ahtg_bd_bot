@@ -1,11 +1,38 @@
+const { Markup } = require('telegraf');
 const User = require('../models/User');
 const Account = require('../models/Account');
-const { getAdminMenu } = require('../keyboards/adminMenu');
-const { getMainMenu } = require('../keyboards/mainMenu');
 
 const ADMIN_TELEGRAM_ID = 7689311203;
 
-// ১. অ্যাডমিন প্যানেল দেখানো (ইউজার বাটন হাইড হয়ে অ্যাডমিন বাটন আসবে)
+// অ্যাডমিন কিবোর্ড
+function getAdminMenu() {
+    return Markup.keyboard([
+        ['📸 ইনস্টা ম্যানেজমেন্ট', '📧 জিমেইল ম্যানেজমেন্ট'],
+        ['📘 ফেসবুক ম্যানেজমেন্ট', '🐦 টুইটার (X) ম্যানেজমেন্ট'],
+        ['💰 উইথড্র ম্যানেজমেন্ট', '💵 ইউজার ব্যালেন্স ম্যানেজমেন্ট'],
+        ['👥 সকল ইউজার লিস্ট', '🏆 শীর্ষ রেফারেল লিস্ট'],
+        ['🚫 ব্লক/আনব্লক ইউজার', '📢 অল ইউজার ব্রডকাস্ট'],
+        ['✉️ সিঙ্গেল ইউজার মেসেজ', '🔙 ইউজার প্যানেল']
+    ]).resize();
+}
+
+// ইউজার কিবোর্ড
+function getMainMenu(isAdmin = false) {
+    const userButtons = [
+        ['📸 ইনস্টাগ্রাম কাজ', '📧 জিমেইল কাজ'],
+        ['📘 ফেসবুক কাজ', '🐦 টুইটার (X) কাজ'],
+        ['👤 প্রোফাইল', '💳 উইথড্র'],
+        ['📢 অফিশিয়াল সাপোর্ট']
+    ];
+
+    if (isAdmin) {
+        userButtons.push(['👑 অ্যাডমিন প্যানেল']);
+    }
+
+    return Markup.keyboard(userButtons).resize();
+}
+
+// ১. অ্যাডমিন প্যানেল দেখানো
 async function showAdminPanel(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     return ctx.reply('👑 **অ্যাডমিন কন্ট্রোল প্যানেলে আপনাকে স্বাগতম!**\n\nনিচের বাটনগুলো দিয়ে বটের সার্বিক কার্যকলাপ পরিচালনা করুন:', {
@@ -17,7 +44,7 @@ async function showAdminPanel(ctx) {
 // ২. ইউজার প্যানেলে ফিরে যাওয়া
 async function showUserPanel(ctx) {
     const isAdmin = Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID);
-    return ctx.reply('🔙 **ইউজার প্যানেলে ফিরে এসেছেন।**', getMainMenu('bn', isAdmin));
+    return ctx.reply('🔙 **ইউজার প্যানেলে ফিরে এসেছেন।**', getMainMenu(isAdmin));
 }
 
 // ৩. সকল ইউজার লিস্ট
