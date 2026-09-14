@@ -1,61 +1,72 @@
 const { Telegraf } = require('telegraf');
+const express = require('express');
 const mongoose = require('mongoose');
-const http = require('http');
 
-const BOT_TOKEN = '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
-const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0:';
-const PORT = process.env.PORT || 3000;
+// এনভায়রনমেন্ট ভ্যারিয়েবল বা হার্ডকোডেড টোকেন ও ইউআরআই
+const BOT_TOKEN = process.env.BOT_TOKEN || '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'আপনার_রেন্ডার_ওয়েব_সার্ভিস_লিংক'; // যেমন: https://your-app-name.onrender.com
 
 const bot = new Telegraf(BOT_TOKEN);
+const app = express();
 
-// MongoDB কানেকশন
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected Successfully!'))
-  .catch((err) => console.error('❌ Database Connection Error:', err));
-
-// ইউজার স্কিমা
+// ডাটাবেজ স্কিমা ও মডেল
 const userSchema = new mongoose.Schema({
-  telegramId: { type: Number, unique: true },
-  username: String,
-  firstName: String,
-  joinedAt: { type: Date, default: Date.now }
+    telegramId: { type: Number, required: true, unique: true },
+    firstName: String,
+    username: String,
+    joinedAt: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', userSchema);
 
-// /start কমান্ড
+// ডাটাবেজ কানেকশন
+mongoose.connect(MONGO_URI)
+    .then(() => console.log('MongoDB Connected Successfully!'))
+    .catch(err => console.error('MongoDB Connection Error:', err));
+
+// এক্সপ্রেশন মিডলওয়্যার
+app.use(express.json());
+
+// টেলিগ্রাম ওয়েবহুক রুট সেটআপ
+app.use(bot.webhookCallback(`/webhook/${BOT_TOKEN}`));
+
+// হোম রাউট বা হার্টবিট সার্ভার
+app.get('/', (req, res) => {
+    res.send('Al-Huda Task Bot is running smoothly via Webhook!');
+});
+
+// /start কমান্ড হ্যান্ডলার
 bot.start(async (ctx) => {
-  const userId = ctx.from.id;
-  const username = ctx.from.username || 'No Username';
-  const firstName = ctx.from.first_name || 'User';
+    try {
+        const userId = ctx.from.id;
+        const firstName = ctx.from.first_name || '';
+        const username = ctx.from.username || '';
 
-  try {
-    let user = await User.findOne({ telegramId: userId });
-    if (!user) {
-      user = new User({ telegramId: userId, username, firstName });
-      await user.save();
-      console.log(`New user saved: ${firstName} (${userId})`);
+        // ডাটাবেজে ইউজার সেভ বা আপডেট করা
+        await User.findOneAndUpdate(
+            { telegramId: userId },
+            { firstName, username },
+            { upsert: true, new: true }
+        );
+
+        await ctx.reply(`স্বাগতম ${firstName}! আল-হুদা টাস্ক প্ল্যাটফর্মে আপনাকে সফলভাবে রেজিস্টার্ড করা হয়েছে।`);
+    } catch (error) {
+        console.error('Database Save Error:', error);
+        await ctx.reply('দুঃখিত, সার্ভারে ডেটা সেভ করার সময় একটি সমস্যা হয়েছে। দয়া করে একটু পরে আবার চেষ্টা করুন।');
     }
-
-    await ctx.reply(`স্বাগতম ${firstName}! আল-হুদা টেক গ্লোবাল ও টাস্ক প্ল্যাটফর্মে আপনাকে স্বাগতম। আপনার ডাটা সফলভাবে রেজিস্টার করা হয়েছে।`);
-  } catch (error) {
-    console.error('Error saving user to DB:', error);
-    await ctx.reply('দুঃখিত, সার্ভারে ডেটা সেভ করার সময় একটি সমস্যা হয়েছে। দয়া করে একটু পরে আবার চেষ্টা করুন।');
-  }
 });
 
-// বট লঞ্চ করা
-bot.launch()
-  .then(() => console.log('🤖 Telegram Bot is running successfully!'))
-  .catch((err) => console.error('Bot launch error:', err));
+// পোর্ট নির্ধারণ (Render-এর জন্য প্রসেস পোর্ট)
+const PORT = process.env.PORT || 3000;
 
-// Render সার্ভার চালু রাখা
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Al-Huda Task Bot Server is Live!\n');
-}).listen(PORT, () => {
-  console.log(`🌐 HTTP Server is listening on port ${PORT}`);
+app.listen(PORT, async () => {
+    console.log(`Server is running on port ${PORT}`);
+    
+    // রেন্ডার এক্সটার্নাল ইউআরএল থাকলে ওয়েবহুক সেট করা
+    if (RENDER_EXTERNAL_URL) {
+        const webhookUrl = `${RENDER_EXTERNAL_URL}/webhook/${BOT_TOKEN}`;
+        await bot.telegram.setWebhook(webhookUrl);
+        console.log(`Webhook is set to: ${webhookUrl}`);
+    }
 });
-
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
