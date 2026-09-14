@@ -1,19 +1,23 @@
 const { Telegraf } = require('telegraf');
 const express = require('express');
-const mongoose = require('mongoose');
+const connectDB = require('./config/db');
 
 // ==========================================
-// CONFIGURATIONS (Testing Mode)
+// CONFIGURATIONS (Environment Variables Setup)
 // ==========================================
 const BOT_TOKEN = process.env.BOT_TOKEN || '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
 const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://ahtg-bd-bot.onrender.com';
-const ADMIN_TELEGRAM_ID = 7689311203;
+const ADMIN_TELEGRAM_ID = Number(process.env.ADMIN_TELEGRAM_ID) || 7689311203;
 const PORT = process.env.PORT || 10000;
 
-// Direct MongoDB Connection
-mongoose.connect(MONGO_URI)
-    .then(() => console.log('MongoDB Database Connected Successfully!'))
-    .catch((err) => console.error('MongoDB Connection Error:', err));
+// Connect MongoDB Atlas Database
+connectDB();
+
+const bot = new Telegraf(BOT_TOKEN);
+const app = express();
+
+app.use(express.json());
+app.use(bot.webhookCallback(`/webhook/${BOT_TOKEN}`));
 
 // Handlers Import
 const { handleStart, handleVerifyCallback } = require('./handlers/startHandler');
@@ -27,12 +31,6 @@ const {
     handleDocumentUpload 
 } = require('./handlers/adminHandler');
 
-const bot = new Telegraf(BOT_TOKEN);
-const app = express();
-
-app.use(express.json());
-app.use(bot.webhookCallback(`/webhook/${BOT_TOKEN}`));
-
 // 🛡️ Global Error Catching
 bot.catch((err, ctx) => {
     console.error(`[Telegraf Error] for update ${ctx.updateType}:`, err);
@@ -43,15 +41,15 @@ bot.catch((err, ctx) => {
     }
 });
 
-// Keep-Alive Webhook Endpoint
+// Server Keep-Alive Webhook Endpoint
 app.get('/', (req, res) => {
-    res.send('Al-Huda Task Bot Server is Running Live!');
+    res.send('Al-Huda Task Bot Server is Running Live & Active!');
 });
 
 // 🤖 Telegram Bot Routing
 bot.start(handleStart);
 
-// 🔍 Inline Button Action for Membership Verification
+// 🔍 Membership Verification Action Listener
 bot.action('verify_membership', handleVerifyCallback);
 
 // Main Reply Keyboard Listeners
@@ -69,32 +67,32 @@ bot.hears(['🐦 টুইটার (X) কাজ', '🐦 Twitter Task'], upcomi
 
 // Admin Control Panel Handlers & Commands
 bot.hears(['👑 অ্যাডমিন প্যানেল', '👑 Admin Panel'], (ctx) => {
-    if (Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID)) {
+    if (Number(ctx.from.id) === ADMIN_TELEGRAM_ID) {
         return handleAdminPanel(ctx);
     }
 });
 
 bot.command('admin', (ctx) => {
-    if (Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID)) {
+    if (Number(ctx.from.id) === ADMIN_TELEGRAM_ID) {
         return handleAdminPanel(ctx);
     }
 });
 
 bot.command('addinsta', (ctx) => {
-    if (Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID)) {
+    if (Number(ctx.from.id) === ADMIN_TELEGRAM_ID) {
         return handleAddInstaStock(ctx);
     }
 });
 
 bot.command('creategift', (ctx) => {
-    if (Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID)) {
+    if (Number(ctx.from.id) === ADMIN_TELEGRAM_ID) {
         return handleCreateGiftCard(ctx);
     }
 });
 
 // Document/File Listener for Bulk Upload
 bot.on('document', (ctx) => {
-    if (Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID)) {
+    if (Number(ctx.from.id) === ADMIN_TELEGRAM_ID) {
         return handleDocumentUpload(ctx);
     }
 });
@@ -108,7 +106,7 @@ bot.on('text', (ctx, next) => {
     return next();
 });
 
-// Express Server Setup
+// Express Server & Webhook Initialization
 app.listen(PORT, async () => {
     console.log(`Server successfully started on port ${PORT}`);
     if (RENDER_EXTERNAL_URL) {
