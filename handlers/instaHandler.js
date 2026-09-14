@@ -1,6 +1,6 @@
+const { Markup } = require('telegraf');
 const InstagramStock = require('../models/InstagramStock');
 const TaskSubmission = require('../models/TaskSubmission');
-const { Markup } = require('telegraf');
 
 // ইউজারের জন্য ডায়নামিক ইন্সটাগ্রাম অ্যাকাউন্ট অ্যাসাইন করা
 async function handleInstaTask(ctx) {
@@ -32,9 +32,9 @@ async function handleInstaTask(ctx) {
             `📝 **বায়ো:** \`${existingTask.bio || 'N/A'}\`\n` +
             `${existingTask.note ? `📌 **নোট:** ${existingTask.note}\n` : ''}\n` +
             `━━━━━━━━━━━━━━━━━━━━\n` +
-            `👉 উপরে দেওয়া তথ্য দিয়ে অ্যাকাউন্ট সেটআপ সম্পন্ন করুন। কাজ শেষ হলে আপনার **2FA Code** নিচে সাবমিট বাটনে চাপ দিন।`;
+            `👉 উপরে দেওয়া তথ্য দিয়ে অ্যাকাউন্ট সেটআপ সম্পন্ন করুন। কাজ শেষ হলে আপনার **2FA Code** বা প্রুফ লিখে নিচে সাবমিট বাটনে চাপ দিন।`;
 
-        ctx.reply(
+        return ctx.reply(
             taskDetails,
             {
                 parse_mode: 'Markdown',
@@ -46,8 +46,9 @@ async function handleInstaTask(ctx) {
 
     } catch (error) {
         console.error('Insta Task Handler Error:', error);
-        ctx.reply('❌ একটি সমস্যা হয়েছে। পরে আবার চেষ্টা করুন।');
+        return ctx.reply('❌ একটি সমস্যা হয়েছে। পরে আবার চেষ্টা করুন।');
     }
 }
 
 module.exports = { handleInstaTask };
+               
