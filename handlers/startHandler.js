@@ -5,6 +5,7 @@ const { Markup } = require('telegraf');
 
 const ADMIN_TELEGRAM_ID = 7689311203;
 
+// /start কমান্ড হ্যান্ডলার
 async function handleStart(ctx) {
     try {
         const userId = ctx.from.id;
@@ -58,8 +59,8 @@ async function handleStart(ctx) {
 
         const isAdmin = Number(userId) === Number(ADMIN_TELEGRAM_ID);
         return ctx.reply(
-            `স্বাগতম ${firstName}! Al-Huda Task প্ল্যাটফর্মে আপনাকে স্বাগতম।\nনিচের বাটনগুলো ব্যবহার করে আপনার কাজ শুরু করুন:`,
-            getMainMenu(user.language, isAdmin)
+            `স্বাগতম ${firstName}! AL-HUDA TASK প্ল্যাটফর্মে আপনাকে স্বাগতম।\nনিচের বাটনগুলো ব্যবহার করে আপনার কাজ শুরু করুন:`,
+            getMainMenu(user.language || 'bn', isAdmin)
         );
     } catch (error) {
         console.error('Start Handler Error:', error);
@@ -67,7 +68,7 @@ async function handleStart(ctx) {
     }
 }
 
-// Callback for Verification Button
+// '✅ ভেরিফাই করুন' বাটনে ক্লিক করলে যে কাজ করবে
 async function handleVerifyCallback(ctx) {
     try {
         await ctx.answerCbQuery();
@@ -84,13 +85,15 @@ async function handleVerifyCallback(ctx) {
 
         const isAdmin = Number(userId) === Number(ADMIN_TELEGRAM_ID);
         
-        // পুরানো ইনলাইন কীবোর্ড মেসেজটি ডিলিট করে মূল মেনু শো করবে
+        // পুরানো ইনলাইন বাটন মেসেজটি মুছে নতুন মেনু পাঠাবে
         try {
             await ctx.deleteMessage();
-        } catch (e) {}
+        } catch (e) {
+            console.error('Message delete error:', e.message);
+        }
 
         return ctx.reply(
-            `🎉 আপনার ভেরিফিকেশন সফল হয়েছে!\n\nAl-Huda Task প্ল্যাটফর্মে আপনাকে স্বাগতম। নিচের বাটনগুলো ব্যবহার করে আপনার কাজ শুরু করুন:`,
+            `🎉 আপনার ভেরিফিকেশন সফল হয়েছে!\n\nAL-HUDA TASK প্ল্যাটফর্মে আপনাকে স্বাগতম। নিচের বাটনগুলো ব্যবহার করে আপনার কাজ শুরু করুন:`,
             getMainMenu('bn', isAdmin)
         );
     } catch (error) {
@@ -100,3 +103,4 @@ async function handleVerifyCallback(ctx) {
 }
 
 module.exports = { handleStart, handleVerifyCallback };
+            
