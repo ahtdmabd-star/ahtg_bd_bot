@@ -1,13 +1,14 @@
 const { Markup } = require('telegraf');
 
 function getAdminMenu() {
-    return Markup.inlineKeyboard([
-        [Markup.button.callback('📊 ইউজার লিস্ট ও কন্ট্রোল', 'admin_users')],
-        [Markup.button.callback('📸 ইন্সটাগ্রাম স্টক আপলোড', 'admin_insta_upload')],
-        [Markup.button.callback('📥 পেন্ডিং প্রুফ রিভিউ', 'admin_proof_review')],
-        [Markup.button.callback('🎁 গিফট কার্ড তৈরি', 'admin_create_gift')],
-        [Markup.button.callback('📢 ব্রডকাস্ট নোটিশ', 'admin_broadcast')]
-    ]);
+    return Markup.keyboard([
+        ['📸 ইনস্টা ম্যানেজমেন্ট', '📧 জিমেইল ম্যানেজমেন্ট'],
+        ['📘 ফেসবুক ম্যানেজমেন্ট', '🐦 টুইটার (X) ম্যানেজমেন্ট'],
+        ['💰 উইথড্র ম্যানেজমেন্ট', '💵 ইউজার ব্যালেন্স ম্যানেজমেন্ট'],
+        ['👥 সকল ইউজার লিস্ট', '🏆 শীর্ষ রেফারেল লিস্ট'],
+        ['🚫 ব্লক/আনব্লক ইউজার', '📢 অল ইউজার ব্রডকাস্ট'],
+        ['✉️ সিঙ্গেল ইউজার মেসেজ', '🔙 ইউজার প্যানেল']
+    ]).resize();
 }
 
 module.exports = { getAdminMenu };
