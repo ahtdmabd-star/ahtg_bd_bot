@@ -5,7 +5,7 @@ const { getMainMenu } = require('../keyboards/mainMenu');
 
 const ADMIN_TELEGRAM_ID = 7689311203;
 
-// ১. অ্যাডমিন মেনু ও ইউজার মেনু সুইচার
+// ১. অ্যাডমিন প্যানেল দেখানো (ইউজার বাটন হাইড হয়ে অ্যাডমিন বাটন আসবে)
 async function showAdminPanel(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     return ctx.reply('👑 **অ্যাডমিন কন্ট্রোল প্যানেলে আপনাকে স্বাগতম!**\n\nনিচের বাটনগুলো দিয়ে বটের সার্বিক কার্যকলাপ পরিচালনা করুন:', {
@@ -14,12 +14,13 @@ async function showAdminPanel(ctx) {
     });
 }
 
+// ২. ইউজার প্যানেলে ফিরে যাওয়া
 async function showUserPanel(ctx) {
     const isAdmin = Number(ctx.from.id) === Number(ADMIN_TELEGRAM_ID);
     return ctx.reply('🔙 **ইউজার প্যানেলে ফিরে এসেছেন।**', getMainMenu('bn', isAdmin));
 }
 
-// ২. সকল ইউজার লিস্ট
+// ৩. সকল ইউজার লিস্ট
 async function handleAllUsersList(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     try {
@@ -28,17 +29,17 @@ async function handleAllUsersList(ctx) {
         let msg = `📊 **মোট ইউজার সংখ্যা:** ${total} জন\n\n**সাম্প্রতিক ইউজারগণ:**\n`;
 
         users.forEach((u, index) => {
-            msg += `${index + 1}. ${u.firstName} (${u.telegramId}) - ব্যালেন্স: ৳${u.balance} ${u.isBlocked ? '❌ [ব্লকড]' : '✅'}\n`;
+            msg += `${index + 1}. ${u.firstName || 'User'} (\`${u.telegramId}\`) - ব্যালেন্স: ৳${u.balance || 0} ${u.isBlocked ? '❌ [ব্লকড]' : '✅'}\n`;
         });
 
         return ctx.reply(msg, { parse_mode: 'Markdown' });
     } catch (err) {
-        console.error(err);
-        return ctx.reply('ইউজার লিস্ট আনতে সমস্যা হয়েছে।');
+        console.error('All Users Error:', err);
+        return ctx.reply('❌ ইউজার লিস্ট আনতে সমস্যা হয়েছে।');
     }
 }
 
-// ৩. শীর্ষ রেফারেল লিস্ট
+// ৪. শীর্ষ রেফারেল লিস্ট
 async function handleTopReferrals(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     try {
@@ -46,16 +47,17 @@ async function handleTopReferrals(ctx) {
         let msg = `🏆 **শীর্ষ ২০ জন রেফারেলকারী:**\n\n`;
 
         topUsers.forEach((u, i) => {
-            msg += `${i + 1}. ${u.firstName} (${u.telegramId}) ➔ মোট রেফার: **${u.totalReferrals}** জন\n`;
+            msg += `${i + 1}. ${u.firstName || 'User'} (\`${u.telegramId}\`) ➔ মোট রেফার: **${u.totalReferrals || 0}** জন\n`;
         });
 
         return ctx.reply(msg, { parse_mode: 'Markdown' });
     } catch (err) {
-        return ctx.reply('রেফারেল লিস্ট আনতে সমস্যা হয়েছে।');
+        console.error('Top Referrals Error:', err);
+        return ctx.reply('❌ রেফারেল লিস্ট আনতে সমস্যা হয়েছে।');
     }
 }
 
-// ৪. প্ল্যাটফর্ম অনুযায়ী স্টক ও কাজের পরিসংখ্যান
+// ৫. প্ল্যাটফর্ম অনুযায়ী স্টক বিবরণ
 async function handlePlatformStock(ctx, platformName) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     try {
@@ -70,11 +72,12 @@ async function handlePlatformStock(ctx, platformName) {
             { parse_mode: 'Markdown' }
         );
     } catch (err) {
-        return ctx.reply('স্টক ডেটা আনতে সমস্যা হয়েছে।');
+        console.error('Platform Stock Error:', err);
+        return ctx.reply('❌ স্টক ডেটা আনতে সমস্যা হয়েছে।');
     }
 }
 
-// ৫. ব্লক/আনব্লক ইউজার কমান্ড (/block /unblock)
+// ৬. ইউজার ব্লক করা (/block <id>)
 async function handleBlockUser(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     const parts = ctx.message.text.split(' ');
@@ -86,6 +89,7 @@ async function handleBlockUser(ctx) {
     return ctx.reply(`🚫 ইউজার \`${targetId}\` সফলভাবে ব্লক করা হয়েছে!`, { parse_mode: 'Markdown' });
 }
 
+// ৭. ইউজার আনব্লক করা (/unblock <id>)
 async function handleUnblockUser(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     const parts = ctx.message.text.split(' ');
@@ -97,7 +101,7 @@ async function handleUnblockUser(ctx) {
     return ctx.reply(`✅ ইউজার \`${targetId}\` আনব্লক করা হয়েছে!`, { parse_mode: 'Markdown' });
 }
 
-// ৬. ইউজার ব্যালেন্স পরিবর্তন (/setbalance)
+// ৮. ব্যালেন্স পরিবর্তন (/setbalance <id> <amount>)
 async function handleSetBalance(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     const parts = ctx.message.text.split(' ');
@@ -112,7 +116,7 @@ async function handleSetBalance(ctx) {
     return ctx.reply(`💰 ইউজার \`${targetId}\`-এর নতুন ব্যালেন্স **৳${newBalance}** করা হয়েছে!`, { parse_mode: 'Markdown' });
 }
 
-// ৭. অল ইউজার ব্রডকাস্ট মেসেজ (/broadcast)
+// ৯. সকল ইউজারকে ব্রডকাস্ট মেসেজ পাঠানো (/broadcast <msg>)
 async function handleBroadcast(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     const broadcastMsg = ctx.message.text.replace('/broadcast', '').trim();
@@ -139,7 +143,7 @@ async function handleBroadcast(ctx) {
     return ctx.reply(`✅ **ব্রডকাস্ট সম্পন্ন!**\n\n✔ সফল: ${success} জন\n✖ ব্যর্থ: ${failed} জন`);
 }
 
-// ৮. সিঙ্গেল ইউজার মেসেজ (/sendmessage)
+// ১০. সিঙ্গেল ইউজারকে ইনবক্সে মেসেজ পাঠানো (/sendmessage <id> <msg>)
 async function handleSingleMessage(ctx) {
     if (Number(ctx.from.id) !== Number(ADMIN_TELEGRAM_ID)) return;
     const parts = ctx.message.text.split(' ');
