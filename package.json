@@ -1,14 +1,16 @@
 {
-  "name": "ahtg_bd_bot",
+  "name": "ahtg-bd-bot",
   "version": "1.0.0",
-  "description": "AL-HUDA TASK Telegram Bot",
+  "description": "Telegram Bot connected with Website",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
-    "mongoose": "^8.0.0",
-    "telegraf": "^4.15.0"
+    "node-fetch": "^2.7.0",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
