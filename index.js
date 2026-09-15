@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const http = require('http');
 
 // Configuration Credentials
-const BOT_TOKEN = '8651381547:AAET-bOtXeJEZR5S-s4zVSConRPZ_hhystI';
+const BOT_TOKEN = '8651381547:AAF2ZnYuSqOttJ1s0c7W9c8RS3S7F5vkpsA';
 const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
 
 // Live Website URLs
