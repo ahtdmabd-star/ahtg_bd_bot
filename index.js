@@ -1,18 +1,28 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const mongoose = require('mongoose');
+const http = require('http');
 
 // Configuration Credentials
 const BOT_TOKEN = '8651381547:AAET-bOtXeJEZR5S-s4zVSConRPZ_hhystI';
 const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
 
-// Updated Live Website URLs
+// Live Website URLs
 const API_URL = 'https://taskwav.site.je/api.php'; 
 const MINI_APP_URL = 'https://taskwav.site.je/index.php';
 
 const ADMIN_ID = '7689311203'; 
 const REQUIRED_CHANNEL = '@AHTG_OFFICIAL';
 const REQUIRED_GROUP_INVITE = 'https://t.me/+N026NocN90tlMTM1';
+
+// Web Server Setup for Render Port Scan Fix
+const PORT = process.env.PORT || 3000;
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('AHTG Telegram Bot is Live & Running!\n');
+}).listen(PORT, () => {
+    console.log(`Web server listening on port ${PORT}`);
+});
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
