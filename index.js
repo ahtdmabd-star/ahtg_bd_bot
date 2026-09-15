@@ -1,13 +1,11 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
-const mongoose = require('mongoose');
 const http = require('http');
 
 // Configuration Credentials
-const BOT_TOKEN = '8651381547:AAF2ZnYuSqOttJ1s0c7W9c8RS3S7F5vkpsA';
-const MONGO_URI = 'mongodb+srv://alhudatechglobal_db_user:XW0TalkXq3tov5Cy@cluster0.g7zrokl.mongodb.net/?appName=Cluster0';
+const BOT_TOKEN = '8651381547:AAF2ZnYuSqOttJ1s0c7W9c8RS3S7F5vkpsA'; // প্রয়োজনে নতুন টোকেন দিন
 
-// Live Website URLs
+// Live Web App & API Links
 const API_URL = 'https://taskwav.site.je/api.php'; 
 const MINI_APP_URL = 'https://taskwav.site.je/index.php';
 
@@ -15,46 +13,37 @@ const ADMIN_ID = '7689311203';
 const REQUIRED_CHANNEL = '@AHTG_OFFICIAL';
 const REQUIRED_GROUP_INVITE = 'https://t.me/+N026NocN90tlMTM1';
 
-// Web Server Setup for Render Port Scan Fix
+// Server for Port Scan/Health Check
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('AHTG Telegram Bot is Live & Running!\n');
-}).listen(PORT, () => {
-    console.log(`Web server listening on port ${PORT}`);
-});
+    res.end('AHTG Bot Active\n');
+}).listen(PORT);
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// MongoDB Connection Setup
-mongoose.connect(MONGO_URI)
-  .then(() => console.log("MongoDB Connected Successfully"))
-  .catch(err => console.error("MongoDB Connection Error:", err));
-
-const BotUserSchema = new mongoose.Schema({
-    telegram_id: { type: String, unique: true, required: true },
-    joined_at: { type: Date, default: Date.now }
+// Error handle for polling
+bot.on('polling_error', (error) => {
+    console.log(`Polling error: ${error.code}`);
 });
-const BotUser = mongoose.model('BotUser', BotUserSchema);
 
-// Handle /start Command & Referral Parameter Tracking
+// /start Command
 bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
     const telegramId = msg.from.id.toString();
     const refBy = match[1] ? match[1].trim() : '';
 
-    await BotUser.updateOne({ telegram_id: telegramId }, { telegram_id: telegramId }, { upsert: true });
     checkAndProcessUser(chatId, telegramId, msg.from, refBy);
 });
 
-// User Channel Verification and Registration Logic
+// Check membership and Register
 async function checkAndProcessUser(chatId, telegramId, userObj, refBy) {
     try {
         const channelMember = await bot.getChatMember(REQUIRED_CHANNEL, telegramId);
         const isSubscribed = ['creator', 'administrator', 'member'].includes(channelMember.status);
 
         if (!isSubscribed) {
-            return bot.sendMessage(chatId, `⚠️ **Access Denied!**\n\nYou must join our Channel and Group to access the Mini App.\n\nClick "Verify ✅" after joining.`, {
+            return bot.sendMessage(chatId, `⚠️ **Access Denied!**\n\nYou must join our Channel and Group to access the Mini App.`, {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
@@ -66,38 +55,37 @@ async function checkAndProcessUser(chatId, telegramId, userObj, refBy) {
             });
         }
 
-        // Send registration and referral details to InfinityFree MySQL API
+        // Register User to MySQL
         const params = new URLSearchParams();
         params.append('telegram_id', telegramId);
-        params.append('first_name', userObj.first_name || '');
+        params.append('first_name', userObj.first_name || 'User');
         params.append('username', userObj.username || '');
         params.append('referred_by', refBy);
 
-        const response = await axios.post(`${API_URL}?action=register`, params);
+        await axios.post(`${API_URL}?action=register`, params);
 
-        if (response.data.status === 'success') {
-            let adminBtn = [];
-            if (telegramId === ADMIN_ID) {
-                adminBtn = [[{ text: "📢 Admin Broadcast Notice", callback_data: "admin_broadcast" }]];
-            }
-
-            bot.sendMessage(chatId, `🎉 **Welcome ${userObj.first_name}!**\n\nYour account is active. Click below to launch the Mini App:`, {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "🚀 Open Mini App", web_app: { url: `${MINI_APP_URL}?tg_id=${telegramId}` } }],
-                        ...adminBtn
-                    ]
-                }
-            });
+        let adminBtn = [];
+        if (telegramId === ADMIN_ID) {
+            adminBtn = [[{ text: "📢 Admin Broadcast Notice", callback_data: "admin_broadcast" }]];
         }
+
+        bot.sendMessage(chatId, `🎉 **Welcome ${userObj.first_name}!**\n\nYour account is active. Click below to launch the Mini App:`, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: "🚀 Open Mini App", web_app: { url: `${MINI_APP_URL}?tg_id=${telegramId}` } }],
+                    ...adminBtn
+                ]
+            }
+        });
+
     } catch (error) {
-        console.error(error);
-        bot.sendMessage(chatId, "⚠️ Verification Error. Please ensure you joined our official channel and try again.");
+        console.error(error.message);
+        bot.sendMessage(chatId, "⚠️ Make sure you have joined our Channel & Group properly, then try again.");
     }
 }
 
-// Callback Button Handlers
+// Callback Query Listener
 bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     const telegramId = query.from.id.toString();
@@ -105,35 +93,7 @@ bot.on('callback_query', async (query) => {
 
     if (data.startsWith('verify_')) {
         const refBy = data.split('_')[1] || "";
-        bot.answerCallbackQuery(query.id, { text: "Checking membership status..." });
+        bot.answerCallbackQuery(query.id, { text: "Checking verification..." });
         checkAndProcessUser(chatId, telegramId, query.from, refBy);
     }
-
-    if (data === "admin_broadcast" && telegramId === ADMIN_ID) {
-        bot.answerCallbackQuery(query.id);
-        bot.sendMessage(chatId, "📢 Send your notice text in the following format:\n\n`/sendnotice Your Notice Message Here`", { parse_mode: 'Markdown' });
-    }
-});
-
-// Admin Broadcast Notice Logic (/sendnotice Message)
-bot.onText(/\/sendnotice (.+)/, async (msg, match) => {
-    const telegramId = msg.from.id.toString();
-    if (telegramId !== ADMIN_ID) return;
-
-    const noticeMessage = match[1];
-    const users = await BotUser.find({});
-    
-    let successCount = 0;
-    bot.sendMessage(telegramId, `⏳ Sending notice to ${users.length} users...`);
-
-    for (let u of users) {
-        try {
-            await bot.sendMessage(u.telegram_id, `📢 **OFFICIAL NOTICE**\n\n${noticeMessage}`, { parse_mode: 'Markdown' });
-            successCount++;
-        } catch (e) {
-            // Skips users who blocked the bot
-        }
-    }
-
-    bot.sendMessage(telegramId, `✅ Notice successfully delivered to ${successCount} users.`);
 });
