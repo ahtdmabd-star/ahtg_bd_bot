@@ -8,7 +8,7 @@ const MINI_APP_URL = 'https://taskwav.site.je/index.php';
 
 const ADMIN_ID = '7689311203'; 
 const REQUIRED_CHANNEL = '@AHTG_OFFICIAL';
-const REQUIRED_GROUP = '@+N026NocN90tlMTM1'; // আপনার গ্রুপের ইউজারনেম দিন (বা ID)
+const REQUIRED_GROUP = '@ahtgofic'; // আপনার গ্রুপের ইউজারনেম দিন (বা ID)
 
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
