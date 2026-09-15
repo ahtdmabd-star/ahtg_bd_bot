@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
+const https = require('https');
 
 const app = express();
 app.use(express.json());
@@ -17,12 +18,28 @@ if (!BOT_TOKEN) {
     process.exit(1);
 }
 
-// Polling mode-এ বট চালু
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+// SSL Certificate Bypass (InfinityFree SSL issue resolve করার জন্য)
+const axiosInstance = axios.create({
+    httpsAgent: new https.Agent({  
+        rejectUnauthorized: false
+    })
+});
+
+// Create Telegram Bot Instance
+const bot = new TelegramBot(BOT_TOKEN, { polling: false });
+
+// 409 Conflict এড়াতে পুরানো Webhook মুছে Polling স্টার্ট করা
+bot.deleteWebHook().then(() => {
+    console.log('✅ Old Webhook Cleared!');
+    bot.startPolling();
+}).catch(err => {
+    console.error('Webhook Clear Error:', err.message);
+    bot.startPolling();
+});
 
 // Render Server Keep-Alive
 app.get('/', (req, res) => {
-    res.send('AHTG Bot is Server Live and Running!');
+    res.send('AHTG Bot Server Live and Running!');
 });
 
 app.listen(PORT, () => {
@@ -37,11 +54,11 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
     const telegramId = msg.from.id;
     const firstName = msg.from.first_name || 'User';
     const username = msg.from.username || '';
-    const startPayload = match ? match[1] : ''; // referral payload
+    const startPayload = match ? match[1] : '';
 
     try {
-        // Website MySQL Synced via API
-        const response = await axios.post(PHP_API_URL, {
+        // Axios Instance দিয়ে SSL bypass করে PHP API-তে ডাটা পাঠানো
+        const response = await axiosInstance.post(PHP_API_URL, {
             secret_key: SECRET_KEY,
             action: 'sync_user',
             telegram_id: telegramId,
@@ -91,7 +108,7 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
 bot.on('callback_query', async (query) => {
     if (query.data === 'admin_stats' && query.from.id === ADMIN_ID) {
         try {
-            const res = await axios.post(PHP_API_URL, {
+            const res = await axiosInstance.post(PHP_API_URL, {
                 secret_key: SECRET_KEY,
                 action: 'get_stats'
             });
@@ -127,7 +144,7 @@ bot.onText(/\/broadcast (.+)/, async (msg, match) => {
     await bot.sendMessage(chatId, '⏳ সকল ইউজারের কাছে ব্রডকাস্ট নোটিশ পাঠানো শুরু হচ্ছে...');
 
     try {
-        const res = await axios.post(PHP_API_URL, {
+        const res = await axiosInstance.post(PHP_API_URL, {
             secret_key: SECRET_KEY,
             action: 'get_all_telegram_ids'
         });
@@ -149,6 +166,13 @@ bot.onText(/\/broadcast (.+)/, async (msg, match) => {
         }
     } catch (e) {
         await bot.sendMessage(chatId, '❌ ব্রডকাস্ট পাঠাতে ব্যর্থ হয়েছে!');
+    }
+});
+
+// Polling Error Ignore Handler
+bot.on('polling_error', (error) => {
+    if (error.code !== 'ETELEGRAM' || !error.message.includes('409 Conflict')) {
+        console.error('Polling Error:', error.message);
     }
 });
 
