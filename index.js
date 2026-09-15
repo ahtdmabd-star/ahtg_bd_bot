@@ -54,7 +54,7 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
     const telegramId = msg.from.id;
     const firstName = msg.from.first_name || 'User';
     const username = msg.from.username || '';
-    const startPayload = match ? match[1] : '';
+    const startPayload = match ? match[1].trim() : '';
 
     try {
         // Axios Instance দিয়ে SSL bypass করে PHP API-তে ডাটা পাঠানো
@@ -64,13 +64,19 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
             telegram_id: telegramId,
             first_name: firstName,
             username: username,
-            referral_code: startPayload
+            referral_code: startPayload // রেফারকারী ইউজারের আইডি/কোড
         });
 
         const me = await bot.getMe();
-        const userRefCode = response.data.referral_code || 'N/A';
+        
+        // রেফারেল লিংক ফিক্স: API থেকে রেফ কোড না এলে ইউজারের নিজের Telegram ID ব্যবহার হবে
+        const userRefCode = (response.data && response.data.referral_code && response.data.referral_code !== 'N/A') 
+                            ? response.data.referral_code 
+                            : telegramId;
+                            
         const botRefLink = `https://t.me/${me.username}?start=${userRefCode}`;
         const webAppUrl = `https://alhudatechglobal.shop/auto_login.php?telegram_id=${telegramId}`;
+        const adminWebAppUrl = `https://alhudatechglobal.shop/admin/index.php?telegram_id=${telegramId}`;
 
         const welcomeText = 
             `✨ *স্বাগতম, ${firstName}!* ✨\n\n` +
@@ -87,8 +93,9 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
             ]
         ];
 
+        // এডমিন বাটনে ক্লিক করলে সরাসরি এডমিন প্যানেল Web App ওপেন হবে
         if (telegramId === ADMIN_ID) {
-            keyboard.push([{ text: '📊 Admin Stats', callback_data: 'admin_stats' }]);
+            keyboard.push([{ text: '📊 Admin Stats', web_app: { url: adminWebAppUrl } }]);
         }
 
         await bot.sendMessage(chatId, welcomeText, {
@@ -98,12 +105,40 @@ bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
 
     } catch (error) {
         console.error('Start Command Error:', error.message);
-        bot.sendMessage(chatId, '⚠️ সিস্টেমে কানেক্ট করতে সমস্যা হয়েছে! কিছুক্ষণ পর চেষ্টা করুন।');
+        
+        // API ডাউন থাকলেও যেন ইউজার সঠিক রেফারেল লিংক পায়
+        const me = await bot.getMe();
+        const fallbackRefLink = `https://t.me/${me.username}?start=${telegramId}`;
+        const webAppUrl = `https://alhudatechglobal.shop/auto_login.php?telegram_id=${telegramId}`;
+
+        const welcomeTextFallback = 
+            `✨ *স্বাগতম, ${firstName}!* ✨\n\n` +
+            `🏆 *AL-HUDA TASK GLOBAL*-এ আপনাকে অভিনন্দন।\n` +
+            `সোশাল মিডিয়া টাস্ক সম্পন্ন করে সরাসরি আয় করুন।\n\n` +
+            `🔗 *আপনার রেফারেল লিংক:*\n\`${fallbackRefLink}\`\n\n` +
+            `👇 *ওয়েবসাইটে কাজ শুরু করতে নিচের বাটনটি চাপুন:*`;
+
+        const keyboard = [
+            [{ text: '🚀 Open Task Web App', web_app: { url: webAppUrl } }],
+            [
+                { text: '📢 Channel', url: 'https://t.me/AHTG_OFFICIAL' },
+                { text: '💬 Group', url: 'https://t.me/+N026NocN90tlMTM1' }
+            ]
+        ];
+
+        if (telegramId === ADMIN_ID) {
+            keyboard.push([{ text: '📊 Admin Stats', web_app: { url: `https://alhudatechglobal.shop/admin/index.php?telegram_id=${telegramId}` } }]);
+        }
+
+        await bot.sendMessage(chatId, welcomeTextFallback, {
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: keyboard }
+        });
     }
 });
 
 // ==========================================
-// 📊 ২. এডমিন স্ট্যাটস (Stats Button)
+// 📊 ২. এডমিন স্ট্যাটস (Callback Query support)
 // ==========================================
 bot.on('callback_query', async (query) => {
     if (query.data === 'admin_stats' && query.from.id === ADMIN_ID) {
