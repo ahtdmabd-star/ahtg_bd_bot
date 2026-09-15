@@ -1,10 +1,10 @@
 {
   "name": "ahtg_bd_bot",
   "version": "1.0.0",
-  "description": "AHTG Official Telegram Bot & Mini App Backend Engine",
-  "main": "bot.js",
+  "description": "AHTG Official Telegram Bot",
+  "main": "index.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "axios": "^1.6.8",
