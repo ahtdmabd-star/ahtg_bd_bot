@@ -1,7 +1,7 @@
 {
-  "name": "ahtg-bd-bot",
+  "name": "ahtg_bd_bot",
   "version": "1.0.0",
-  "description": "AL-HUDA TASK Telegram Bot with Admin Broadcast",
+  "description": "AL-HUDA TASK Telegram Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -10,7 +10,7 @@
     "axios": "^1.6.8",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "telegraf": "^4.16.3"
+    "node-telegram-bot-api": "^0.65.1"
   },
   "engines": {
     "node": ">=18.0.0"
