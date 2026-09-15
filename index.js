@@ -1,93 +1,155 @@
+require('dotenv').config();
+const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
-const fetch = require('node-fetch');
+const axios = require('axios');
 
-// আপনার কনফিগারেশন
-const BOT_TOKEN = process.env.BOT_TOKEN || '8651381547:AAF5jgoHUVl8vlTfEe47unNL_9w06YkgxdY';
-const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://ahtg-bd-bot.onrender.com';
-const ADMIN_TELEGRAM_ID = 7689311203;
+const app = express();
+app.use(express.json());
+
 const PORT = process.env.PORT || 10000;
+const BOT_TOKEN = process.env.BOT_TOKEN || '8651381547:AAET-bOtXeJEZR5S-s4zVSConRPZ_hhystI';
+const PHP_API_URL = 'https://alhudatechglobal.shop/bot_api.php';
+const SECRET_KEY = 'my_telegram_bot_secret_key_123';
+const ADMIN_ID = 7689311203;
 
-// আপনার কাস্টম ডোমেইন
-const YOUR_DOMAIN = 'alhudatechglobal.shop';
-const WEBSITE_API_URL = `https://${YOUR_DOMAIN}/api_register.php`;
+if (!BOT_TOKEN) {
+    console.error("❌ Error: BOT_TOKEN is missing!");
+    process.exit(1);
+}
 
+// Polling mode-এ বট চালু
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-console.log('Bot is running and connected...');
+// Render Server Keep-Alive
+app.get('/', (req, res) => {
+    res.send('AHTG Bot is Server Live and Running!');
+});
 
-// /start কমান্ড হ্যান্ডলার (রেফারেল কোডসহ)
+app.listen(PORT, () => {
+    console.log(`Server successfully started on port ${PORT}`);
+});
+
+// ==========================================
+// 🚀 ১. /start কমান্ড
+// ==========================================
 bot.onText(/\/start(?:\s+(.+))?/, async (msg, match) => {
     const chatId = msg.chat.id;
-    const userId = msg.from.id;
-    const username = msg.from.username || 'NoUsername';
-    const refCodeFromLink = match[1] ? match[1].trim() : '';
+    const telegramId = msg.from.id;
+    const firstName = msg.from.first_name || 'User';
+    const username = msg.from.username || '';
+    const startPayload = match ? match[1] : ''; // referral payload
 
     try {
-        const response = await fetch(WEBSITE_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegram_id: userId,
-                telegram_username: username,
-                ref_code: refCodeFromLink
-            })
+        // Website MySQL Synced via API
+        const response = await axios.post(PHP_API_URL, {
+            secret_key: SECRET_KEY,
+            action: 'sync_user',
+            telegram_id: telegramId,
+            first_name: firstName,
+            username: username,
+            referral_code: startPayload
         });
 
-        const data = await response.json();
+        const me = await bot.getMe();
+        const userRefCode = response.data.referral_code || 'N/A';
+        const botRefLink = `https://t.me/${me.username}?start=${userRefCode}`;
+        const webAppUrl = `https://alhudatechglobal.shop/auto_login.php?telegram_id=${telegramId}`;
 
-        if (data.status === 'success' || data.status === 'exists') {
-            const keyboard = {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            { text: '🔗 আমার রেফার লিংক', callback_data: 'get_ref_link' },
-                            { text: '👥 মোট রেফার সংখ্যা', callback_data: 'get_ref_count' }
-                        ],
-                        [
-                            { text: '🚀 ওপেন অ্যাপ (ওয়েবসাইট)', web_app: { url: `https://${YOUR_DOMAIN}/support.php` } }
-                        ]
-                    ]
-                }
-            };
+        const welcomeText = 
+            `✨ *স্বাগতম, ${firstName}!* ✨\n\n` +
+            `🏆 *AL-HUDA TASK GLOBAL*-এ আপনাকে অভিনন্দন।\n` +
+            `সোশাল মিডিয়া টাস্ক সম্পন্ন করে সরাসরি আয় করুন।\n\n` +
+            `🔗 *আপনার রেফারেল লিংক:*\n\`${botRefLink}\`\n\n` +
+            `👇 *ওয়েবসাইটে কাজ শুরু করতে নিচের বাটনটি চাপুন:*`;
 
-            bot.sendMessage(chatId, `স্বাগতম! আপনার অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে।\n\nনিচের বাটনগুলো থেকে আপনার রেফার লিংক ও তথ্য দেখতে পারেন:`, keyboard);
-        } else {
-            bot.sendMessage(chatId, 'দুঃখিত, ডাটাবেজে রেজিস্ট্রেশন করতে সমস্যা হয়েছে।');
+        const keyboard = [
+            [{ text: '🚀 Open Task Web App', web_app: { url: webAppUrl } }],
+            [
+                { text: '📢 Channel', url: 'https://t.me/AHTG_OFFICIAL' },
+                { text: '💬 Group', url: 'https://t.me/+N026NocN90tlMTM1' }
+            ]
+        ];
+
+        if (telegramId === ADMIN_ID) {
+            keyboard.push([{ text: '📊 Admin Stats', callback_data: 'admin_stats' }]);
         }
+
+        await bot.sendMessage(chatId, welcomeText, {
+            parse_mode: 'Markdown',
+            reply_markup: { inline_keyboard: keyboard }
+        });
+
     } catch (error) {
-        console.error('API Error:', error);
-        bot.sendMessage(chatId, 'সার্ভারে কানেক্ট করতে সমস্যা হচ্ছে।');
+        console.error('Start Command Error:', error.message);
+        bot.sendMessage(chatId, '⚠️ সিস্টেমে কানেক্ট করতে সমস্যা হয়েছে! কিছুক্ষণ পর চেষ্টা করুন।');
     }
 });
 
-// বাটন ক্লিক হ্যান্ডলার (Callback Query)
+// ==========================================
+// 📊 ২. এডমিন স্ট্যাটস (Stats Button)
+// ==========================================
 bot.on('callback_query', async (query) => {
-    const chatId = query.message.chat.id;
-    const userId = query.from.id;
-    const action = query.data;
+    if (query.data === 'admin_stats' && query.from.id === ADMIN_ID) {
+        try {
+            const res = await axios.post(PHP_API_URL, {
+                secret_key: SECRET_KEY,
+                action: 'get_stats'
+            });
+
+            if (res.data.status === 'success') {
+                const stats = res.data.data;
+                const statsMsg = 
+                    `📊 *AL-HUDA TASK Bot Statistics*\n\n` +
+                    `👤 *মোট ইউজার (Total):* ${stats.total_users}\n` +
+                    `📅 *এই মাসের ইউজার (Monthly):* ${stats.monthly_users}\n` +
+                    `☀️ *আজকের ইউজার (Today):* ${stats.today_users}\n\n` +
+                    `📢 *নোটিশ পাঠাতে লিখুন:*\n\`/broadcast আপনার মেসেজ...\``;
+
+                await bot.sendMessage(query.message.chat.id, statsMsg, { parse_mode: 'Markdown' });
+            }
+        } catch (e) {
+            bot.sendMessage(query.message.chat.id, '❌ ডাটা আনতে সমস্যা হয়েছে!');
+        }
+        bot.answerCallbackQuery(query.id);
+    }
+});
+
+// ==========================================
+// 📢 ৩. ব্রডকাস্ট মেসেজ পাঠানো (/broadcast)
+// ==========================================
+bot.onText(/\/broadcast (.+)/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    if (msg.from.id !== ADMIN_ID) {
+        return bot.sendMessage(chatId, '❌ এই কমান্ড কেবল এডমিনের জন্য!');
+    }
+
+    const messageText = match[1].trim();
+    await bot.sendMessage(chatId, '⏳ সকল ইউজারের কাছে ব্রডকাস্ট নোটিশ পাঠানো শুরু হচ্ছে...');
 
     try {
-        const apiUrl = `${WEBSITE_API_URL}?telegram_id=${userId}`;
-        const res = await fetch(apiUrl);
-        const data = await res.json();
+        const res = await axios.post(PHP_API_URL, {
+            secret_key: SECRET_KEY,
+            action: 'get_all_telegram_ids'
+        });
 
-        if (action === 'get_ref_link') {
-            const botInfo = await bot.getMe();
-            if (data.referral_code) {
-                const refLink = `https://t.me/${botInfo.username}?start=${data.referral_code}`;
-                bot.sendMessage(chatId, `📌 আপনার রেফারেল লিংক:\n${refLink}\n\nএই লিংকটি বন্ধুদের সাথে শেয়ার করুন!`);
-            } else {
-                bot.sendMessage(chatId, 'আপনার রেফার কোড পাওয়া যায়নি। দয়া করে /start দিয়ে আবার চেষ্টা করুন।');
+        if (res.data.status === 'success') {
+            const users = res.data.users;
+            let successCount = 0;
+
+            for (const user of users) {
+                try {
+                    await bot.sendMessage(user.telegram_id, `📢 *অফিশিয়াল নোটিশ*\n\n${messageText}`, { parse_mode: 'Markdown' });
+                    successCount++;
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                } catch (err) {
+                    // Blocked or invalid user
+                }
             }
-        } 
-        else if (action === 'get_ref_count') {
-            const refCount = data.ref_count || 0;
-            bot.sendMessage(chatId, `👥 আপনার রেফারে মোট ${refCount} জন অ্যাকাউন্ট করেছে।`);
+            await bot.sendMessage(chatId, `✅ *ব্রডকাস্ট সম্পন্ন হয়েছে!*\n\nমোট সফল মেসেজ: *${successCount} / ${users.length}*`, { parse_mode: 'Markdown' });
         }
-
-        bot.answerCallbackQuery(query.id);
-    } catch (error) {
-        console.error('Callback Error:', error);
-        bot.sendMessage(chatId, 'তথ্য আনতে সমস্যা হয়েছে।');
+    } catch (e) {
+        await bot.sendMessage(chatId, '❌ ব্রডকাস্ট পাঠাতে ব্যর্থ হয়েছে!');
     }
 });
+
+console.log('🤖 Bot Engine Listening...');
